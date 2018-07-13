@@ -80,7 +80,8 @@ class InferenceModel():
             map_flow_depth = self.map_flows_level[level]
 
             # squeeze
-            out = glow.nn.chainer.functions.squeeze(x)
+            out = glow.nn.chainer.functions.squeeze(
+                x, factor=self.hyperparams.squeeze_factor)
 
             # step of flow
             for depth in range(depth_per_level):

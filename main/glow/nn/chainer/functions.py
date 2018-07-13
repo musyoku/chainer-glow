@@ -1,6 +1,5 @@
 import math
 import chainer.functions as cf
-from chainer.backends import cuda
 
 
 def squeeze(x, factor=2):
