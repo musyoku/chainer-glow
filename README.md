@@ -17,6 +17,7 @@
 - Python 3
 - Ubuntu
 - Chainer 4
+- High-Powered GPU
 
 # Installation
 
