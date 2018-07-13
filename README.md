@@ -9,7 +9,8 @@
 - [x] Implement inference model
 - [ ] Implement generative model
 - [x] Implement training loop
-- [ ] Quantitative Experiments
+- [ ] Quantitative experiments
+- [ ] LU decomposition
 - [ ] Debug
 
 # Requirements
