@@ -13,15 +13,15 @@ from hyperparams import Hyperparameters
 class InferenceModel():
     def __init__(self, hyperparams: Hyperparameters, hdf5_path=None):
         assert isinstance(hyperparams, Hyperparameters)
-
+        self.hyperparams = hyperparams
         self.parameters = chainer.Chain()
         num_channels = 3  # RGB
 
         with self.parameters.init_scope():
-            num_channels *= 2  # squeeze
             self.map_flows_level = []
 
             for level in range(hyperparams.levels):
+                num_channels *= 2  # squeeze
                 map_flow_depth = []
 
                 for depth in range(hyperparams.depth_per_level):
@@ -48,7 +48,8 @@ class InferenceModel():
 
                     # affine coupling layer
                     params = glow.nn.chainer.affine_coupling.Parameters(
-                        channels=num_channels)
+                        channels_h=512,
+                        channels_out=num_channels * 2)  # scale + translation
                     nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
                         params, reverse=False)  # NN
                     coupling_layer = glow.nn.chainer.affine_coupling.AffineCoupling(
@@ -68,6 +69,36 @@ class InferenceModel():
                     self.parameters)
             except:
                 pass
+
+    def __call__(self, x):
+        z = []
+        levels = self.hyperparams.levels
+        depth_per_level = self.hyperparams.depth_per_level
+        
+        for level in range(levels):
+            map_flow_depth = self.map_flows_level[level]
+
+            # squeeze
+            out = glow.nn.chainer.functions.squeeze(x)
+
+            # step of flow
+            for depth in range(depth_per_level):
+                flow = map_flow_depth[depth]
+                actnorm, conv_1x1, coupling_layer = flow
+                out = actnorm(out)
+                out = conv_1x1(out)
+                out = coupling_layer(out)
+
+            # split
+            if level == levels - 1:
+                z.append(out)
+            else:
+                zi = out[:, 0::2]
+                x = out[:, 1::2]
+
+            z.append(zi)
+
+        return z
 
     @property
     def params_filename(self):
@@ -89,5 +120,9 @@ class InferenceModel():
             os.path.join(path, tmp_filename), os.path.join(path, filename))
 
 
-class GenerationModel():
+class GenerativeModel():
+    pass
+
+
+def reverse():
     pass
