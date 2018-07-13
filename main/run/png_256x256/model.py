@@ -2,6 +2,7 @@ import os
 import sys
 import chainer
 import uuid
+from chainer import functions as cf
 from chainer.serializers import load_hdf5, save_hdf5
 
 sys.path.append(os.path.join("..", ".."))
@@ -21,7 +22,7 @@ class InferenceModel():
             self.map_flows_level = []
 
             for level in range(hyperparams.levels):
-                num_channels *= 2  # squeeze
+                num_channels *= hyperparams.squeeze_factor**2  # squeeze
                 map_flow_depth = []
 
                 for depth in range(hyperparams.depth_per_level):
@@ -74,7 +75,8 @@ class InferenceModel():
         z = []
         levels = self.hyperparams.levels
         depth_per_level = self.hyperparams.depth_per_level
-        
+        sum_logdet = 0
+
         for level in range(levels):
             map_flow_depth = self.map_flows_level[level]
 
@@ -85,9 +87,14 @@ class InferenceModel():
             for depth in range(depth_per_level):
                 flow = map_flow_depth[depth]
                 actnorm, conv_1x1, coupling_layer = flow
-                out = actnorm(out)
-                out = conv_1x1(out)
-                out = coupling_layer(out)
+                out, logdet = actnorm(out)
+                sum_logdet += cf.sum(logdet, axis=(1, 2, 3))
+
+                out, logdet = conv_1x1(out)
+                sum_logdet += cf.sum(logdet, axis=(1, 2, 3))
+
+                out, logdet = coupling_layer(out)
+                sum_logdet += cf.sum(logdet, axis=(1, 2, 3))
 
             # split
             if level == levels - 1:
@@ -98,7 +105,7 @@ class InferenceModel():
 
             z.append(zi)
 
-        return z
+        return z, sum_logdet
 
     @property
     def params_filename(self):

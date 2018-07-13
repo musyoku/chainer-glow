@@ -53,13 +53,17 @@ def main():
     for filepath in files:
         image = np.array(Image.open(filepath)).astype("float32")
         image = (image / 255.0 * 2.0) - 1.0
+        image = image.transpose((2, 0, 1))
         images.append(image)
     images = np.asanyarray(images)
 
     dataset = glow.dataset.png.Dataset(images)
-    print(len(dataset))
+    iterator = glow.dataset.png.Iterator(dataset, batch_size=args.batch_size)
 
     hyperparams = Hyperparameters()
+    hyperparams.levels = args.levels
+    hyperparams.depth_per_level = args.depth_per_level
+
     model = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
     if using_gpu:
         model.to_gpu()
@@ -72,6 +76,11 @@ def main():
         (args.batch_size, 3) + hyperparams.image_size, dtype="float32")
 
     current_training_step = 0
+    for iteration in range(args.training_steps):
+        for batch_index, data_indices in enumerate(iterator):
+            x_batch = to_gpu(dataset[data_indices])
+            z_batch, logdet_batch = model(x_batch)
+            print(logdet_batch)
 
 
 if __name__ == "__main__":
@@ -80,6 +89,10 @@ if __name__ == "__main__":
     parser.add_argument("--snapshot-path", type=str, default="snapshot")
     parser.add_argument("--batch-size", "-b", type=int, default=32)
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
+
     parser.add_argument("--training-steps", "-i", type=int, default=100000)
+    parser.add_argument(
+        "--depth-per-level", "-depth", type=int, default=100000)
+    parser.add_argument("--levels", "-levels", type=int, default=100000)
     args = parser.parse_args()
     main()
