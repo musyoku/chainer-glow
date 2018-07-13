@@ -81,7 +81,6 @@ def main():
                 prior_ln_var = prior_mean
                 negative_log_likelihood += cf.gaussian_nll(
                     zi, prior_mean, prior_ln_var)
-                unko = float(negative_log_likelihood.data)
             loss = (negative_log_likelihood - logdet_batch) / args.batch_size
             model.cleargrads()
             loss.backward()
