@@ -1,2 +1,2 @@
-from .layer import Actnorm, ReverseActnorm
+from .layer import Actnorm
 from .parameters import Parameters

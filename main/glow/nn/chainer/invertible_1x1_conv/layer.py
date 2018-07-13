@@ -5,17 +5,16 @@ from ... import base
 from .parameters import Parameters
 
 
-class Actnorm(base.Actnorm):
+class Invertible1x1Conv(base.Invertible1x1Conv):
     def __init__(self, params: Parameters):
         self.params = params
 
     def __call__(self, x):
-        inter = self.params.scale(x)
-        y = self.params.bias(inter)
         log_det = self.compute_log_determinant(x)
+        y = self.params.conv(x)
         return y, log_det
 
     def compute_log_determinant(self, x):
         h, w = x.shape[2:]
-        s = self.params.scale.W
-        return h * w * cf.sum(cf.log(s))
+        W = self.params.conv.W
+        return h * w * cf.log(cf.det(W))
