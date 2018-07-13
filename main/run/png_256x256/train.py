@@ -70,17 +70,23 @@ def main():
 
     optimizer = Optimizer(model.parameters)
 
-    prior_mean = xp.zeros(
-        (args.batch_size, 3) + hyperparams.image_size, dtype="float32")
-    prior_ln_var = xp.zeros(
-        (args.batch_size, 3) + hyperparams.image_size, dtype="float32")
-
     current_training_step = 0
     for iteration in range(args.training_steps):
         for batch_index, data_indices in enumerate(iterator):
             x_batch = to_gpu(dataset[data_indices])
             z_batch, logdet_batch = model(x_batch)
-            print(logdet_batch)
+            negative_log_likelihood = 0
+            for zi in z_batch:
+                prior_mean = xp.zeros(zi.shape, dtype="float32")
+                prior_ln_var = prior_mean
+                negative_log_likelihood += cf.gaussian_nll(
+                    zi, prior_mean, prior_ln_var)
+                unko = float(negative_log_likelihood.data)
+            loss = (negative_log_likelihood - logdet_batch) / args.batch_size
+            model.cleargrads()
+            loss.backward()
+            optimizer.update(current_training_step)
+            print("loss", float(loss.data))
 
 
 if __name__ == "__main__":

@@ -17,4 +17,4 @@ class Invertible1x1Conv(base.Invertible1x1Conv):
     def compute_log_determinant(self, x):
         h, w = x.shape[2:]
         W = self.params.conv.W
-        return h * w * cf.log(cf.det(W))
+        return h * w * cf.log(abs(cf.det(W)))

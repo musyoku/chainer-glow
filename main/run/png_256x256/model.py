@@ -88,15 +88,12 @@ class InferenceModel():
                 actnorm, conv_1x1, coupling_layer = flow
                 out, logdet = actnorm(out)
                 sum_logdet += logdet
-                print("a", logdet)
 
                 out, logdet = conv_1x1(out)
                 sum_logdet += logdet
-                print("b", logdet)
 
                 out, logdet = coupling_layer(out)
                 sum_logdet += logdet
-                print("c", logdet)
 
             # split
             if level == levels - 1:

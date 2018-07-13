@@ -6,6 +6,24 @@
 
 **Todo**
 
-- [ ] Implement model
-- [ ] Implement training loop
+- [x] Implement model
+- [x] Implement training loop
+- [ ] Quantitative Experiments
 - [ ] Debug
+
+# Requirements
+
+- Python 3
+- Ubuntu
+- Chainer 4
+
+# Installation
+
+```
+pip3 install chainer cupy h5py
+```
+
+# Dataset
+## CelebA HQ
+
+# Results
