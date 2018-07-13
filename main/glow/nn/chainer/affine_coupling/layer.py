@@ -11,9 +11,10 @@ class NonlinearMapping(base.NonlinearMapping):
         self.reverse = reverse
 
     def __call__(self, x):
-        out = cf.relu(self.params.conv_1(x))
-        out = cf.relu(self.params.conv_2(x))
-        out = self.params.conv_3(x)
+        out = x
+        out = cf.relu(self.params.conv_1(out))
+        out = cf.relu(self.params.conv_2(out))
+        out = self.params.conv_3(out)
         log_scale = out[:, 0::2]
         translation = out[:, 1::2]
         if self.reverse:
@@ -37,4 +38,4 @@ class AffineCoupling(base.AffineCoupling):
         return y, log_det
 
     def compute_log_determinant(self, scale):
-        return cf.log(abs(scale))
+        return cf.sum(cf.log(abs(scale)))

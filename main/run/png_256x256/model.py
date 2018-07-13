@@ -49,8 +49,7 @@ class InferenceModel():
 
                     # affine coupling layer
                     params = glow.nn.chainer.affine_coupling.Parameters(
-                        channels_h=512,
-                        channels_out=num_channels * 2)  # scale + translation
+                        channels_x=num_channels, channels_h=512)
                     nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
                         params, reverse=False)  # NN
                     coupling_layer = glow.nn.chainer.affine_coupling.AffineCoupling(
@@ -88,13 +87,16 @@ class InferenceModel():
                 flow = map_flow_depth[depth]
                 actnorm, conv_1x1, coupling_layer = flow
                 out, logdet = actnorm(out)
-                sum_logdet += cf.sum(logdet, axis=(1, 2, 3))
+                sum_logdet += logdet
+                print("a", logdet)
 
                 out, logdet = conv_1x1(out)
-                sum_logdet += cf.sum(logdet, axis=(1, 2, 3))
+                sum_logdet += logdet
+                print("b", logdet)
 
                 out, logdet = coupling_layer(out)
-                sum_logdet += cf.sum(logdet, axis=(1, 2, 3))
+                sum_logdet += logdet
+                print("c", logdet)
 
             # split
             if level == levels - 1:
@@ -102,8 +104,7 @@ class InferenceModel():
             else:
                 zi = out[:, 0::2]
                 x = out[:, 1::2]
-
-            z.append(zi)
+                z.append(zi)
 
         return z, sum_logdet
 
