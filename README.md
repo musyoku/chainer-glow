@@ -6,7 +6,8 @@
 
 **Todo**
 
-- [x] Implement model
+- [x] Implement inference model
+- [ ] Implement generative model
 - [x] Implement training loop
 - [ ] Quantitative Experiments
 - [ ] Debug
