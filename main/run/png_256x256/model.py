@@ -16,13 +16,19 @@ class InferenceModel():
         assert isinstance(hyperparams, Hyperparameters)
         self.hyperparams = hyperparams
         self.parameters = chainer.Chain()
-        num_channels = 3  # RGB
+        channels_x = 3  # RGB
 
         with self.parameters.init_scope():
             self.map_flows_level = []
 
             for level in range(hyperparams.levels):
-                num_channels *= hyperparams.squeeze_factor**2  # squeeze
+                if level == 0:
+                    # squeeze
+                    channels_x *= hyperparams.squeeze_factor**2
+                else:
+                    # squeeze and split
+                    channels_x *= hyperparams.squeeze_factor**2 // 2
+
                 map_flow_depth = []
 
                 for depth in range(hyperparams.depth_per_level):
@@ -31,7 +37,7 @@ class InferenceModel():
 
                     # actnorm
                     params = glow.nn.chainer.actnorm.Parameters(
-                        channels=num_channels)
+                        channels=channels_x)
                     actnorm = glow.nn.chainer.actnorm.Actnorm(params)
                     setattr(self.parameters, "actnorm_{}_{}".format(
                         level, depth), params)
@@ -39,7 +45,7 @@ class InferenceModel():
 
                     # invertible 1x1 convolution
                     params = glow.nn.chainer.invertible_1x1_conv.Parameters(
-                        channels=num_channels)
+                        channels=channels_x)
                     conv_1x1 = glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv(
                         params)
                     setattr(self.parameters,
@@ -49,7 +55,8 @@ class InferenceModel():
 
                     # affine coupling layer
                     params = glow.nn.chainer.affine_coupling.Parameters(
-                        channels_x=num_channels, channels_h=512)
+                        channels_x=channels_x,
+                        channels_h=hyperparams.nn_hidden_channels)
                     nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
                         params, reverse=False)  # NN
                     coupling_layer = glow.nn.chainer.affine_coupling.AffineCoupling(

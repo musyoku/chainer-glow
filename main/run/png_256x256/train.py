@@ -63,6 +63,7 @@ def main():
     hyperparams = Hyperparameters()
     hyperparams.levels = args.levels
     hyperparams.depth_per_level = args.depth_per_level
+    hyperparams.nn_hidden_channels = args.nn_hidden_channels
 
     model = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
     if using_gpu:
@@ -71,21 +72,24 @@ def main():
     optimizer = Optimizer(model.parameters)
 
     current_training_step = 0
+    
     for iteration in range(args.training_steps):
         for batch_index, data_indices in enumerate(iterator):
-            x_batch = to_gpu(dataset[data_indices])
-            z_batch, logdet_batch = model(x_batch)
+            x = to_gpu(dataset[data_indices])
+            z, logdet = model(x)
             negative_log_likelihood = 0
-            for zi in z_batch:
+            for zi in z:
                 prior_mean = xp.zeros(zi.shape, dtype="float32")
                 prior_ln_var = prior_mean
                 negative_log_likelihood += cf.gaussian_nll(
                     zi, prior_mean, prior_ln_var)
-            loss = (negative_log_likelihood - logdet_batch) / args.batch_size
+            loss = (negative_log_likelihood - logdet) / args.batch_size
             model.cleargrads()
             loss.backward()
             optimizer.update(current_training_step)
             print("loss", float(loss.data))
+
+        model.serialize(args.snapshot_path)
 
 
 if __name__ == "__main__":
@@ -97,7 +101,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--training-steps", "-i", type=int, default=100000)
     parser.add_argument(
-        "--depth-per-level", "-depth", type=int, default=100000)
-    parser.add_argument("--levels", "-levels", type=int, default=100000)
+        "--depth-per-level", "-depth", type=int, default=32)
+    parser.add_argument("--levels", "-levels", type=int, default=5)
+    parser.add_argument("--nn-hidden-channels", "-nn", type=int, default=512)
     args = parser.parse_args()
     main()

@@ -17,5 +17,4 @@ class Parameters(chainer.Chain):
                 ksize=3,
                 stride=1,
                 pad=1,
-                initialW=Zero(),
-                initial_bias=Zero())
+                initialW=Zero())
