@@ -27,8 +27,8 @@ class AffineCoupling(base.AffineCoupling):
         xa = x[:, 0::2]
         xb = x[:, 1::2]
         log_scale, translation = self.nn(xb)
-        scale = cf.exp(log_scale)
-        ya = scale * xa + translation
+        scale = cf.sigmoid(log_scale + 2)
+        ya = scale * (xa + translation)
         yb = xb
         y = cf.concat((ya, yb), axis=1)
         log_det = self.compute_log_determinant(scale)
@@ -46,8 +46,8 @@ class ReverseAffineCoupling(base.ReverseAffineCoupling):
         ya = y[:, 0::2]
         yb = y[:, 1::2]
         log_scale, translation = self.nn(yb)
-        scale = cf.exp(log_scale)
-        xa = (ya - translation) / scale
+        scale = cf.sigmoid(log_scale + 2)
+        xa = ya / scale - translation
         xb = yb
         x = cf.concat((xa, xb), axis=1)
         return x
