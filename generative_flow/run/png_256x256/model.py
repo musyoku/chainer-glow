@@ -11,6 +11,7 @@ from chainer.backends import cuda
 sys.path.append(os.path.join("..", ".."))
 import glow
 
+from glow.nn.chainer.functions import squeeze, unsqueeze
 from hyperparams import Hyperparameters
 
 
@@ -101,8 +102,7 @@ class InferenceModel():
         for level in range(levels):
 
             # squeeze
-            out = glow.nn.chainer.functions.squeeze(
-                x, factor=self.hyperparams.squeeze_factor)
+            out = squeeze(x, factor=self.hyperparams.squeeze_factor)
 
             # step of flow
             for depth in range(depth_per_level):
@@ -120,8 +120,9 @@ class InferenceModel():
             if level == levels - 1:
                 z.append(out)
             else:
-                zi = out[:, 0::2]
-                x = out[:, 1::2]
+                n = out.shape[1]
+                zi = out[:, n // 2:]
+                x = out[:, :n // 2]
                 z.append(zi)
 
         return z, sum_logdet
@@ -188,16 +189,16 @@ def reverse_coupling_layer(
 
 class GenerativeModel():
     def __init__(self, model: InferenceModel):
-        hyperparams = model.hyperparams
+        self.hyperparams = model.hyperparams
         self.parameters = chainer.Chain()
 
         with self.parameters.init_scope():
             self.map_flows_level = []
 
-            for level in range(hyperparams.levels):
+            for level in range(self.hyperparams.levels):
                 map_flow_depth = []
 
-                for depth in range(hyperparams.depth_per_level):
+                for depth in range(self.hyperparams.depth_per_level):
                     actnorm, conv_1x1, coupling_layer = model[level][depth]
 
                     rev_actnorm = reverse_actnorm(actnorm)
@@ -223,8 +224,39 @@ class GenerativeModel():
     def __getitem__(self, level):
         return self.map_flows_level[level]
 
+    def factor_z(self, z):
+        factorized_z = []
+        for level in range(self.hyperparams.levels):
+            z = squeeze(z)
+            if level == self.hyperparams.levels - 1:
+                factorized_z.append(z)
+            else:
+                zi = z[:, 0::2]
+                z = z[:, 1::2]
+                factorized_z.append(zi)
+        return factorized_z
+
     def __call__(self, z):
-        pass
+        if isinstance(z, list):
+            factorized_z = z
+        else:
+            factorized_z = self.factor_z(z)
+            
+        out = factorized_z.pop(-1)
+        for level in range(self.hyperparams.levels - 1, -1, -1):
+            for depth in range(self.hyperparams.depth_per_level):
+                rev_coupling_layer, rev_conv_1x1, rev_actnorm = self[level][
+                    depth]
+
+                out = rev_coupling_layer(out)
+                out = rev_conv_1x1(out)
+                out = rev_actnorm(out)
+
+            out = unsqueeze(out)
+            if level > 0:
+                zi = factorized_z.pop(-1)
+                out = cf.concat((zi, out), axis=1)
+        return out
 
     def to_gpu(self):
         self.parameters.to_gpu()

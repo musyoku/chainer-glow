@@ -77,9 +77,9 @@ def main():
     for iteration in range(args.training_steps):
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
-            z, logdet = model(x)
+            factorized_z, logdet = model(x)
             negative_log_likelihood = 0
-            for zi in z:
+            for zi in factorized_z:
                 prior_mean = xp.zeros(zi.shape, dtype="float32")
                 prior_ln_var = prior_mean
                 negative_log_likelihood += cf.gaussian_nll(

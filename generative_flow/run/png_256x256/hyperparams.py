@@ -10,12 +10,13 @@ class Hyperparameters():
         self.nn_hidden_channels = 512
         self.image_size = (256, 256)
 
-        json_path = Path(path) / self.params_filename
-        if Path(json_path).exists():
-            with open(json_path, "r") as f:
-                obj = json.load(f)
-                for (key, value) in obj.items():
-                    setattr(self, key, value)
+        if path is not None:
+            json_path = Path(path) / self.params_filename
+            if Path(json_path).exists():
+                with open(json_path, "r") as f:
+                    obj = json.load(f)
+                    for (key, value) in obj.items():
+                        setattr(self, key, value)
 
     @property
     def params_filename(self):
