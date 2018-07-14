@@ -17,6 +17,15 @@ from model import reverse_actnorm, reverse_conv_1x1, reverse_coupling_layer
 def main():
     channels_x = 4
     batchsize = 3
+
+    x = np.arange(0, 8 * 8 * 3 * 3, dtype=int).reshape((3, 3, 8, 8))
+    print(x)
+    y = glow.nn.chainer.functions.squeeze(x)
+    print(y)
+    x = glow.nn.chainer.functions.unsqueeze(y)
+    print(x)
+    exit()
+
     while True:
         x = np.random.normal(size=(batchsize, channels_x, 3,
                                    3)).astype("float32")
