@@ -72,8 +72,15 @@ def main():
 
     optimizer = Optimizer(model.parameters)
 
+    # data dependent initialization
+    for batch_index, data_indices in enumerate(iterator):
+        x = to_gpu(dataset[data_indices])
+        model.initialize_actnorm_weights(x)
+        break
+
     current_training_step = 0
 
+    # training loop
     for iteration in range(args.training_steps):
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])

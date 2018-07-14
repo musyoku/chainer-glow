@@ -10,8 +10,8 @@ class Actnorm(base.Actnorm):
         self.params = params
 
     def __call__(self, x):
-        inter = self.params.scale(x)
-        y = self.params.bias(inter)
+        inter = self.params.bias(x)
+        y = self.params.scale(inter)
         log_det = self.compute_log_determinant(x)
         return y, log_det
 
@@ -26,6 +26,6 @@ class ReverseActnorm(base.ReverseActnorm):
         self.params = params
 
     def __call__(self, y):
-        inter = self.params.bias(y)
-        x = self.params.scale(inter)
+        inter = self.params.scale(y)
+        x = self.params.bias(y)
         return x

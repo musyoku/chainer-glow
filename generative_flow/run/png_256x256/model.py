@@ -150,12 +150,10 @@ class InferenceModel():
         return self.map_flows_level[level]
 
     # data dependent initialization
-    def initialize_actnorm_weights(self, minibatch):
-        z = []
+    def initialize_actnorm_weights(self, x):
+        xp = cuda.get_array_module(x)
         levels = self.hyperparams.levels
         depth_per_level = self.hyperparams.depth_per_level
-        sum_logdet = 0
-
         for level in range(levels):
 
             # squeeze
@@ -164,25 +162,21 @@ class InferenceModel():
             # step of flow
             for depth in range(depth_per_level):
                 actnorm, conv_1x1, coupling_layer = self[level][depth]
-                out, logdet = actnorm(out)
-                sum_logdet += logdet
+                mean = xp.mean(out.data, axis=(0, 2, 3))
+                std = xp.std(out.data, axis=(0, 2, 3))
 
-                out, logdet = conv_1x1(out)
-                sum_logdet += logdet
+                params = actnorm.params
+                params.scale.W.data = 1.0 / std
+                params.bias.b.data = -mean
 
-                out, logdet = coupling_layer(out)
-                sum_logdet += logdet
+                out, _ = actnorm(out)
+                out, _ = conv_1x1(out)
+                out, _ = coupling_layer(out)
 
             # split
-            if level == levels - 1:
-                z.append(out)
-            else:
+            if level < levels - 1:
                 n = out.shape[1]
-                zi = out[:, :n // 2]
                 x = out[:, n // 2:]
-                z.append(zi)
-
-        return z, sum_logdet
 
 
 def reverse_actnorm(layer: glow.nn.chainer.actnorm.Actnorm):

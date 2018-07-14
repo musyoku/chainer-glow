@@ -10,8 +10,8 @@ class Parameters(chainer.Chain):
 
         with self.init_scope():
             shape = (channels, channels)
-            rotation_mat = np.linalg.qr(
-                np.random.normal(size=shape))[0].astype("float32")
+            rotation_mat = np.linalg.qr(np.random.normal(
+                size=shape))[0].astype("float32").reshape(shape + (1, 1))
             self.conv = L.Convolution2D(
                 channels,
                 channels,
