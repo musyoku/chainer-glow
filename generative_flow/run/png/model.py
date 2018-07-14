@@ -4,6 +4,7 @@ import chainer
 import uuid
 import cupy
 import numpy as np
+from pathlib import Path
 from chainer import functions as cf
 from chainer.serializers import load_hdf5, save_hdf5
 from chainer.backends import cuda
@@ -87,9 +88,9 @@ class InferenceModel():
 
         if hdf5_path:
             try:
-                load_hdf5(
-                    os.path.join(hdf5_path, self.params_filename),
-                    self.parameters)
+                filepath = Path(hdf5_path) / self.params_filename
+                print("loading {}".format(filepath))
+                load_hdf5(filepath, self.parameters)
             except:
                 pass
 

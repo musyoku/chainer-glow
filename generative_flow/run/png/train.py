@@ -64,6 +64,7 @@ def main():
     hyperparams.levels = args.levels
     hyperparams.depth_per_level = args.depth_per_level
     hyperparams.nn_hidden_channels = args.nn_hidden_channels
+    hyperparams.image_size = image.shape[1:]
     hyperparams.serialize(args.snapshot_path)
 
     model = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
@@ -82,6 +83,7 @@ def main():
 
     # Training loop
     for iteration in range(args.training_steps):
+        sum_loss = 0
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
             factorized_z, logdet = model(x)
@@ -95,8 +97,14 @@ def main():
             model.cleargrads()
             loss.backward()
             optimizer.update(current_training_step)
-            print("loss", float(loss.data))
 
+            sum_loss += float(loss.data)
+            printr("Iteration {}: Batch {} / {} - loss: {:.3f}".format(
+                iteration + 1, batch_index + 1, len(iterator),
+                float(loss.data)))
+
+        print("\033[2KIteration {} - loss: {:.3f} - step: {}".format(
+            iteration + 1, sum_loss / len(iterator), current_training_step))
         model.serialize(args.snapshot_path)
 
         # Check model stability

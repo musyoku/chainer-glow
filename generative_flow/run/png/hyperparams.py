@@ -16,6 +16,8 @@ class Hyperparameters():
                 with open(json_path, "r") as f:
                     obj = json.load(f)
                     for (key, value) in obj.items():
+                        if isinstance(value, list):
+                            value = tuple(value)
                         setattr(self, key, value)
 
     @property
