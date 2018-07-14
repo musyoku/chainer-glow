@@ -2,6 +2,7 @@ import os
 import sys
 import chainer
 import uuid
+import cupy
 import numpy as np
 from chainer import functions as cf
 from chainer.serializers import load_hdf5, save_hdf5
@@ -11,6 +12,18 @@ sys.path.append(os.path.join("..", ".."))
 import glow
 
 from hyperparams import Hyperparameters
+
+
+def to_gpu(array):
+    if isinstance(array, np.ndarray):
+        return cuda.to_gpu(array)
+    return array
+
+
+def to_cpu(array):
+    if isinstance(array, cupy.ndarray):
+        return cuda.to_cpu(array)
+    return array
 
 
 class InferenceModel():
@@ -60,7 +73,7 @@ class InferenceModel():
                         channels_x=channels_x,
                         channels_h=hyperparams.nn_hidden_channels)
                     nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
-                        params, reverse=False)  # NN
+                        params)  # NN
                     coupling_layer = glow.nn.chainer.affine_coupling.AffineCoupling(
                         nn=nonlinear_mapping)
                     setattr(self.parameters, "affine_coupling_{}_{}".format(
@@ -142,7 +155,7 @@ def reverse_actnorm(layer: glow.nn.chainer.actnorm.Actnorm):
     source = layer.params
     target = glow.nn.chainer.actnorm.Parameters(source.channels)
     target.scale.W.data = 1.0 / source.scale.W.data
-    target.bias.W.data = -source.bias.W.data
+    target.bias.b.data = -source.bias.b.data
     return glow.nn.chainer.actnorm.ReverseActnorm(params=target)
 
 
@@ -150,22 +163,29 @@ def reverse_conv_1x1(
         layer: glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv):
     source = layer.params
     target = glow.nn.chainer.invertible_1x1_conv.Parameters(source.channels)
-    weight = cuda.to_cpu(source.conv.W.data)
-    inv_weight = np.linalg.inv(weight)
-    target.conv.W.data = inv_weight
+    source_weight = source.conv.W.data
+    # make it a square matrix
+    weight = source_weight.reshape(source_weight.shape[:2])
+    xp = cuda.get_array_module(weight)
+    inv_weight = xp.linalg.inv(weight)
+    # make it a conv kernel
+    target.conv.W.data = to_cpu(inv_weight.reshape(inv_weight.shape + (1, 1)))
     return glow.nn.chainer.invertible_1x1_conv.ReverseInvertible1x1Conv(
         params=target)
 
 
 def reverse_coupling_layer(
         layer: glow.nn.chainer.affine_coupling.AffineCoupling):
-    source = layer.params
+    source = layer.nn.params
     target = glow.nn.chainer.affine_coupling.Parameters(
         source.channels_x, source.channels_h)
     target.conv_1.W.data = source.conv_1.W.data
     target.conv_2.W.data = source.conv_2.W.data
     target.conv_3.W.data = source.conv_3.W.data
-    return glow.nn.chainer.affine_coupling.ReverseAffineCoupling(params=target)
+    nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
+        params=target)
+    return glow.nn.chainer.affine_coupling.ReverseAffineCoupling(
+        nn=nonlinear_mapping)
 
 
 class GenerativeModel():

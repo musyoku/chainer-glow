@@ -6,9 +6,8 @@ from .parameters import Parameters
 
 
 class NonlinearMapping(base.NonlinearMapping):
-    def __init__(self, params: Parameters, reverse=False):
+    def __init__(self, params: Parameters):
         self.params = params
-        self.reverse = reverse
 
     def __call__(self, x):
         out = x
@@ -17,8 +16,6 @@ class NonlinearMapping(base.NonlinearMapping):
         out = self.params.conv_3(out)
         log_scale = out[:, 0::2]
         translation = out[:, 1::2]
-        if self.reverse:
-            return -log_scale, -translation
         return log_scale, translation
 
 

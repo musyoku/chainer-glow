@@ -19,21 +19,21 @@ from model import InferenceModel
 from optimizer import Optimizer
 
 
-def printr(string):
-    sys.stdout.write(string)
-    sys.stdout.write("\r")
-
-
 def to_gpu(array):
-    if args.gpu_device >= 0:
+    if isinstance(array, np.ndarray):
         return cuda.to_gpu(array)
     return array
 
 
 def to_cpu(array):
-    if args.gpu_device >= 0:
+    if isinstance(array, cupy.ndarray):
         return cuda.to_cpu(array)
     return array
+
+
+def printr(string):
+    sys.stdout.write(string)
+    sys.stdout.write("\r")
 
 
 def main():
@@ -72,7 +72,7 @@ def main():
     optimizer = Optimizer(model.parameters)
 
     current_training_step = 0
-    
+
     for iteration in range(args.training_steps):
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
@@ -100,8 +100,7 @@ if __name__ == "__main__":
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
 
     parser.add_argument("--training-steps", "-i", type=int, default=100000)
-    parser.add_argument(
-        "--depth-per-level", "-depth", type=int, default=32)
+    parser.add_argument("--depth-per-level", "-depth", type=int, default=32)
     parser.add_argument("--levels", "-levels", type=int, default=5)
     parser.add_argument("--nn-hidden-channels", "-nn", type=int, default=512)
     args = parser.parse_args()
