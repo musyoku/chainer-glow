@@ -18,3 +18,12 @@ class Invertible1x1Conv(base.Invertible1x1Conv):
         h, w = x.shape[2:]
         W = self.params.conv.W
         return h * w * cf.log(abs(cf.det(W)))
+
+
+class ReverseInvertible1x1Conv(base.ReverseInvertible1x1Conv):
+    def __init__(self, params: Parameters):
+        self.params = params
+
+    def __call__(self, x):
+        y = self.params.conv(x)
+        return y

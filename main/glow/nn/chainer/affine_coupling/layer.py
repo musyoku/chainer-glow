@@ -39,3 +39,18 @@ class AffineCoupling(base.AffineCoupling):
 
     def compute_log_determinant(self, scale):
         return cf.sum(cf.log(abs(scale)))
+
+
+class ReverseAffineCoupling(base.ReverseAffineCoupling):
+    def __init__(self, nn: NonlinearMapping):
+        self.nn = nn
+
+    def __call__(self, y):
+        ya = y[:, 0::2]
+        yb = y[:, 1::2]
+        log_scale, translation = self.nn(yb)
+        scale = cf.exp(log_scale)
+        xa = (ya - translation) / scale
+        xb = yb
+        x = cf.concat((xa, xb), axis=1)
+        return x

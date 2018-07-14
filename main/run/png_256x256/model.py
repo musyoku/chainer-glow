@@ -2,8 +2,10 @@ import os
 import sys
 import chainer
 import uuid
+import numpy as np
 from chainer import functions as cf
 from chainer.serializers import load_hdf5, save_hdf5
+from chainer.backends import cuda
 
 sys.path.append(os.path.join("..", ".."))
 import glow
@@ -132,10 +134,59 @@ class InferenceModel():
         os.rename(
             os.path.join(path, tmp_filename), os.path.join(path, filename))
 
+    def __getitem__(self, level):
+        return self.map_flows_level[level]
+
+
+def reverse_actnorm(layer: glow.nn.chainer.actnorm.Actnorm):
+    source = layer.params
+    target = glow.nn.chainer.actnorm.Parameters(source.channels)
+    target.scale.W.data = 1.0 / source.scale.W.data
+    target.bias.W.data = -source.bias.W.data
+    return glow.nn.chainer.actnorm.ReverseActnorm(params=target)
+
+
+def reverse_conv_1x1(
+        layer: glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv):
+    source = layer.params
+    target = glow.nn.chainer.invertible_1x1_conv.Parameters(source.channels)
+    weight = cuda.to_cpu(source.conv.W.data)
+    inv_weight = np.linalg.inv(weight)
+    target.conv.W.data = inv_weight
+    return glow.nn.chainer.invertible_1x1_conv.ReverseInvertible1x1Conv(
+        params=target)
+
+
+def reverse_coupling_layer(
+        layer: glow.nn.chainer.affine_coupling.AffineCoupling):
+    source = layer.params
+    target = glow.nn.chainer.affine_coupling.Parameters(
+        source.channels_x, source.channels_h)
+    target.conv_1.W.data = source.conv_1.W.data
+    target.conv_2.W.data = source.conv_2.W.data
+    target.conv_3.W.data = source.conv_3.W.data
+    return glow.nn.chainer.affine_coupling.ReverseAffineCoupling(params=target)
+
 
 class GenerativeModel():
-    pass
+    def __init__(self, model: InferenceModel):
+        hyperparams = model.hyperparams
+        self.map_flows_level = []
 
+        for level in range(hyperparams.levels):
+            map_flow_depth = []
 
-def reverse():
-    pass
+            for depth in range(hyperparams.depth_per_level):
+                flow = []
+                actnorm, conv_1x1, coupling_layer = model[level][depth]
+
+                flow.append(reverse_actnorm(actnorm))
+                flow.append(reverse_conv_1x1(conv_1x1))
+                flow.append(reverse_coupling_layer(coupling_layer))
+
+                map_flow_depth.append(flow)
+
+            self.map_flows_level.append(map_flow_depth)
+
+    def __call__(self, z):
+        pass

@@ -6,6 +6,9 @@ from chainer.initializers import Zero
 class Parameters(chainer.Chain):
     def __init__(self, channels_x, channels_h):
         super().__init__()
+        self.channels_x = channels_x
+        self.channels_h = channels_h
+        
         with self.init_scope():
             self.conv_1 = L.Convolution2D(
                 None, channels_h, ksize=3, stride=1, pad=1)

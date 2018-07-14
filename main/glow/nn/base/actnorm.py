@@ -4,3 +4,7 @@ class Actnorm:
 
     def compute_log_determinant(self):
         raise NotImplementedError
+
+class ReverseActnorm:
+    def __call__(self, y):
+        raise NotImplementedError

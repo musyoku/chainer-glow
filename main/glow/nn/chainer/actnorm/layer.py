@@ -19,3 +19,13 @@ class Actnorm(base.Actnorm):
         h, w = x.shape[2:]
         s = self.params.scale.W
         return h * w * cf.sum(cf.log(s))  # keep minibatch
+
+
+class ReverseActnorm(base.ReverseActnorm):
+    def __init__(self, params: Parameters):
+        self.params = params
+
+    def __call__(self, y):
+        inter = self.params.bias(y)
+        x = self.params.scale(inter)
+        return x

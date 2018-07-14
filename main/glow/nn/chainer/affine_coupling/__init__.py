@@ -1,2 +1,2 @@
-from .layer import NonlinearMapping, AffineCoupling
+from .layer import NonlinearMapping, AffineCoupling, ReverseAffineCoupling
 from .parameters import Parameters

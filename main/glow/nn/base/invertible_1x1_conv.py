@@ -6,6 +6,11 @@ class Invertible1x1Conv:
         raise NotImplementedError
 
 
+class ReverseInvertible1x1Conv:
+    def __call__(self, y):
+        raise NotImplementedError
+
+
 class LUInvertible1x1Conv:
     def __call__(self, x):
         raise NotImplementedError
