@@ -155,11 +155,8 @@ class InferenceModel():
         levels = self.hyperparams.levels
         depth_per_level = self.hyperparams.depth_per_level
         for level in range(levels):
-
-            # squeeze
             out = squeeze(x, factor=self.hyperparams.squeeze_factor)
 
-            # step of flow
             for depth in range(depth_per_level):
                 actnorm, conv_1x1, coupling_layer = self[level][depth]
                 mean = xp.mean(out.data, axis=(0, 2, 3))
@@ -173,7 +170,6 @@ class InferenceModel():
                 out, _ = conv_1x1(out)
                 out, _ = coupling_layer(out)
 
-            # split
             if level < levels - 1:
                 n = out.shape[1]
                 x = out[:, n // 2:]
@@ -207,9 +203,9 @@ def reverse_coupling_layer(
     source = layer.nn.params
     target = glow.nn.chainer.affine_coupling.Parameters(
         source.channels_x, source.channels_h)
-    target.conv_1.W.data[...] = source.conv_1.W.data
-    target.conv_2.W.data[...] = source.conv_2.W.data
-    target.conv_3.W.data[...] = source.conv_3.W.data
+    target.conv_1.W.data[...] = to_cpu(source.conv_1.W.data)
+    target.conv_2.W.data[...] = to_cpu(source.conv_2.W.data)
+    target.conv_3.W.data[...] = to_cpu(source.conv_3.W.data)
     nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
         params=target)
     return glow.nn.chainer.affine_coupling.ReverseAffineCoupling(

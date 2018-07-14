@@ -43,12 +43,12 @@ def check_layer():
     # invertible 1x1 convolution
     params = glow.nn.chainer.invertible_1x1_conv.Parameters(
         channels=channels_x)
-    params.conv.W.data = np.random.normal(
-        0.0, 0.1, size=params.conv.W.data.shape).astype("float32")
     shape = params.conv.W.data.shape[:2]
     noise = np.random.normal(0.0, 0.01, size=shape).astype("float32")
-    weight = np.linalg.qr(np.random.normal(size=shape))[0].astype("float32")
-    params.conv.W.data = (noise + weight).reshape(shape + (1, 1))
+    noise = np.random.normal(
+        0.0, 0.01, size=shape).astype("float32").reshape(shape + (1, 1))
+    params.conv.W.data += noise
+
     conv_1x1 = glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv(params)
     rev_conv_1x1 = reverse_conv_1x1(conv_1x1)
 
@@ -115,9 +115,7 @@ def check_model():
             params = conv_1x1.params
             shape = params.conv.W.data.shape[:2]
             noise = np.random.normal(0.0, 0.01, size=shape).astype("float32")
-            weight = np.linalg.qr(
-                np.random.normal(size=shape))[0].astype("float32")
-            params.conv.W.data = (noise + weight).reshape(shape + (1, 1))
+            params.conv.W.data += noise
 
             params = coupling_layer.nn.params
             params.conv_1.W.data = np.random.normal(

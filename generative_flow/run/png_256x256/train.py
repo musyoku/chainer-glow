@@ -15,7 +15,7 @@ sys.path.append(os.path.join("..", ".."))
 import glow
 
 from hyperparams import Hyperparameters
-from model import InferenceModel
+from model import InferenceModel, GenerativeModel
 from optimizer import Optimizer
 
 
@@ -72,7 +72,7 @@ def main():
 
     optimizer = Optimizer(model.parameters)
 
-    # data dependent initialization
+    # Data dependent initialization
     for batch_index, data_indices in enumerate(iterator):
         x = to_gpu(dataset[data_indices])
         model.initialize_actnorm_weights(x)
@@ -80,7 +80,7 @@ def main():
 
     current_training_step = 0
 
-    # training loop
+    # Training loop
     for iteration in range(args.training_steps):
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
@@ -98,6 +98,18 @@ def main():
             print("loss", float(loss.data))
 
         model.serialize(args.snapshot_path)
+
+        # Check model stability
+        if True:
+            with chainer.using_config("train", False), chainer.using_config(
+                    "enable_backprop", False):
+                generative_model = GenerativeModel(model)
+                if using_gpu:
+                    generative_model.to_gpu()
+                factorized_z, logdet = model(x)
+                rev_x = generative_model(factorized_z)
+                error = cf.mean(abs(x - rev_x))
+                print(error)
 
 
 if __name__ == "__main__":
