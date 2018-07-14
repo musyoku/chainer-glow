@@ -18,7 +18,7 @@ class Actnorm(base.Actnorm):
     def compute_log_determinant(self, x):
         h, w = x.shape[2:]
         s = self.params.scale.W
-        return h * w * cf.sum(cf.log(s))  # keep minibatch
+        return h * w * cf.sum(cf.log(abs(s)))  # keep minibatch
 
 
 class ReverseActnorm(base.ReverseActnorm):

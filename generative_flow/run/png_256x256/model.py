@@ -121,8 +121,8 @@ class InferenceModel():
                 z.append(out)
             else:
                 n = out.shape[1]
-                zi = out[:, n // 2:]
-                x = out[:, :n // 2]
+                zi = out[:, :n // 2]
+                x = out[:, n // 2:]
                 z.append(zi)
 
         return z, sum_logdet
@@ -148,6 +148,41 @@ class InferenceModel():
 
     def __getitem__(self, level):
         return self.map_flows_level[level]
+
+    # data dependent initialization
+    def initialize_actnorm_weights(self, minibatch):
+        z = []
+        levels = self.hyperparams.levels
+        depth_per_level = self.hyperparams.depth_per_level
+        sum_logdet = 0
+
+        for level in range(levels):
+
+            # squeeze
+            out = squeeze(x, factor=self.hyperparams.squeeze_factor)
+
+            # step of flow
+            for depth in range(depth_per_level):
+                actnorm, conv_1x1, coupling_layer = self[level][depth]
+                out, logdet = actnorm(out)
+                sum_logdet += logdet
+
+                out, logdet = conv_1x1(out)
+                sum_logdet += logdet
+
+                out, logdet = coupling_layer(out)
+                sum_logdet += logdet
+
+            # split
+            if level == levels - 1:
+                z.append(out)
+            else:
+                n = out.shape[1]
+                zi = out[:, :n // 2]
+                x = out[:, n // 2:]
+                z.append(zi)
+
+        return z, sum_logdet
 
 
 def reverse_actnorm(layer: glow.nn.chainer.actnorm.Actnorm):
@@ -178,9 +213,9 @@ def reverse_coupling_layer(
     source = layer.nn.params
     target = glow.nn.chainer.affine_coupling.Parameters(
         source.channels_x, source.channels_h)
-    target.conv_1.W.data = source.conv_1.W.data
-    target.conv_2.W.data = source.conv_2.W.data
-    target.conv_3.W.data = source.conv_3.W.data
+    target.conv_1.W.data[...] = source.conv_1.W.data
+    target.conv_2.W.data[...] = source.conv_2.W.data
+    target.conv_3.W.data[...] = source.conv_3.W.data
     nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
         params=target)
     return glow.nn.chainer.affine_coupling.ReverseAffineCoupling(
@@ -241,10 +276,10 @@ class GenerativeModel():
             factorized_z = z
         else:
             factorized_z = self.factor_z(z)
-            
+
         out = factorized_z.pop(-1)
         for level in range(self.hyperparams.levels - 1, -1, -1):
-            for depth in range(self.hyperparams.depth_per_level):
+            for depth in range(self.hyperparams.depth_per_level - 1, -1, -1):
                 rev_coupling_layer, rev_conv_1x1, rev_actnorm = self[level][
                     depth]
 
@@ -256,6 +291,7 @@ class GenerativeModel():
             if level > 0:
                 zi = factorized_z.pop(-1)
                 out = cf.concat((zi, out), axis=1)
+
         return out
 
     def to_gpu(self):
