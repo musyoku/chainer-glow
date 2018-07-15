@@ -3,6 +3,8 @@ import math
 import os
 import random
 import sys
+
+from tabulate import tabulate
 from PIL import Image
 from pathlib import Path
 
@@ -60,12 +62,22 @@ def main():
     dataset = glow.dataset.png.Dataset(images)
     iterator = glow.dataset.png.Iterator(dataset, batch_size=args.batch_size)
 
+    print(tabulate([["#image", len(dataset)]]))
+
     hyperparams = Hyperparameters(args.snapshot_path)
     hyperparams.levels = args.levels
     hyperparams.depth_per_level = args.depth_per_level
     hyperparams.nn_hidden_channels = args.nn_hidden_channels
     hyperparams.image_size = image.shape[1:]
     hyperparams.serialize(args.snapshot_path)
+
+    print(
+        tabulate([
+            ["levels", hyperparams.levels],
+            ["depth_per_level", hyperparams.depth_per_level],
+            ["nn_hidden_channels", hyperparams.nn_hidden_channels],
+            ["image_size", hyperparams.image_size],
+        ]))
 
     model = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
     if using_gpu:

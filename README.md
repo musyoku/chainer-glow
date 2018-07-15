@@ -18,12 +18,14 @@
 - Python 3
 - Ubuntu
 - Chainer 4
-- High-Powered GPU
+- Extremely huge amount of GPU memory
+- python-tabulate
 
 # Installation
 
 ```
 pip3 install chainer cupy h5py
+pip3 install tabulate
 ```
 
 # Dataset
