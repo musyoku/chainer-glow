@@ -119,6 +119,7 @@ class InferenceModel():
         def closure(layer):
             def func(x):
                 return layer(x)
+
             return func
 
         for level in range(levels):
@@ -204,6 +205,9 @@ class InferenceModel():
             if level < levels - 1:
                 n = out.shape[1]
                 x = out[:, n // 2:]
+
+    def reverse(self):
+        return GenerativeModel(self)
 
 
 def reverse_actnorm(layer: glow.nn.chainer.actnorm.Actnorm):

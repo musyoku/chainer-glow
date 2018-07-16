@@ -60,12 +60,12 @@ def main():
             ["image_size", hyperparams.image_size],
         ]))
 
-    inference_model = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
-    generative_model = GenerativeModel(inference_model)
+    encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
+    decoder = encoder.reverse()
 
     if using_gpu:
-        inference_model.to_gpu()
-        generative_model.to_gpu()
+        encoder.to_gpu()
+        decoder.to_gpu()
 
     fig = plt.figure(figsize=(8, 4))
     left = fig.add_subplot(1, 2, 1)
@@ -75,8 +75,8 @@ def main():
         while True:
             for data_indices in iterator:
                 x = to_gpu(dataset[data_indices])
-                factorized_z, _ = inference_model(x)
-                rev_x = generative_model(factorized_z)
+                factorized_z, _ = encoder(x)
+                rev_x = decoder(factorized_z)
 
                 x_img = make_uint8(x[0])
                 rev_x_img = make_uint8(rev_x.data[0])

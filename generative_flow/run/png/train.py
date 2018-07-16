@@ -79,17 +79,17 @@ def main():
             ["image_size", hyperparams.image_size],
         ]))
 
-    model = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
+    encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
     if using_gpu:
-        model.to_gpu()
+        encoder.to_gpu()
 
-    optimizer = Optimizer(model.parameters)
+    optimizer = Optimizer(encoder.parameters)
 
     # Data dependent initialization
-    if model.need_initialize:
+    if encoder.need_initialize:
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
-            model.initialize_actnorm_weights(x)
+            encoder.initialize_actnorm_weights(x)
             break
 
     current_training_step = 0
@@ -99,7 +99,7 @@ def main():
         sum_loss = 0
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
-            factorized_z, logdet = model(x, reduce_memory=args.reduce_memory)
+            factorized_z, logdet = encoder(x, reduce_memory=args.reduce_memory)
             negative_log_likelihood = 0
             for zi in factorized_z:
                 prior_mean = xp.zeros(zi.shape, dtype="float32")
@@ -107,7 +107,7 @@ def main():
                 negative_log_likelihood += cf.gaussian_nll(
                     zi, prior_mean, prior_ln_var)
             loss = (negative_log_likelihood - logdet) / args.batch_size
-            model.cleargrads()
+            encoder.cleargrads()
             loss.backward()
             optimizer.update(current_training_step)
 
@@ -119,23 +119,22 @@ def main():
                 float(loss.data)))
 
             if batch_index % 100 == 0:
-                model.serialize(args.snapshot_path)
+                encoder.serialize(args.snapshot_path)
 
-        print("\033[2KIteration {} - loss: {:.3f} - step: {}".format(
-            iteration + 1, sum_loss / len(iterator), current_training_step))
-        model.serialize(args.snapshot_path)
-
-        # Check model stability
+        # Check model reversibility
+        reconstruction_error = None
         if True:
             with chainer.no_backprop_mode():
-                generative_model = GenerativeModel(model)
+                decoder = encoder.reverse()
                 if using_gpu:
-                    generative_model.to_gpu()
-                factorized_z, logdet = model(x)
-                rev_x = generative_model(factorized_z)
-                error = cf.mean(abs(x - rev_x))
-                print(error)
+                    decoder.to_gpu()
+                factorized_z, logdet = encoder(x)
+                rev_x = decoder(factorized_z)
+                reconstruction_error = float(cf.mean(abs(x - rev_x)).data)
 
+        print("\033[2KIteration {} - loss: {:.3f} - reconstruction error: {}  - step: {}".format(
+            iteration + 1, sum_loss / len(iterator), reconstruction_error, current_training_step))
+        encoder.serialize(args.snapshot_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
