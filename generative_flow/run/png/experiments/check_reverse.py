@@ -16,7 +16,7 @@ from hyperparams import Hyperparameters
 
 
 def check_layer():
-    channels_x = 1
+    channels_x = 128
     batchsize = 1
 
     x = xp.random.normal(size=(batchsize, channels_x, 5,
@@ -33,43 +33,6 @@ def check_layer():
     actnorm = glow.nn.chainer.actnorm.Actnorm(params)
     rev_actnorm = reverse_actnorm(actnorm)
     rev_actnorm.params.to_gpu()
-
-    scales = []
-    biases = []
-    for _ in range(4 * 32):
-        scale_64 = xp.random.normal(
-            1.0, 1, size=params.scale.W.data.shape).astype("float32")
-        bias_64 = xp.random.normal(
-            0.0, 1, size=params.bias.b.data.shape).astype("float32")
-        
-        scales.append(scale_64)
-        biases.append(bias_64)
-
-    print(x)
-    y = x
-    for _ in range(4 * 32):
-        scale_64 = scales[_]
-        bias_64 = biases[_]
-        y = y - bias_64
-        y = y / scale_64
-    print(y)
-    for _ in range(4 * 32):
-        scale_64 = scales[4 * 32 - _ - 1]
-        bias_64 = biases[4 * 32 - _ - 1]
-        y = y * scale_64
-        y = y + bias_64
-    print(y)
-    y = x
-    for _ in range(4 * 32):
-        y = y - params.bias.b.data
-        y = y / params.scale.W.data
-    print(y)
-    for _ in range(4 * 32):
-        y = y * params.scale.W.data
-        y = y + params.bias.b.data
-    print(y)
-    exit()
-
 
     y = x
     for _ in range(4 * 32):
@@ -128,28 +91,6 @@ def check_layer():
     for _ in range(4 * 32):
         rev_x = rev_coupling_layer(rev_x)
     error = cf.mean(abs(x - rev_x))
-    print(error)
-
-    forward_variables = []
-    reverse_variables = []
-    y = x
-    for _ in range(4 * 32):
-        forward_variables.append(y)
-        y, _ = actnorm(y)
-        y, _ = conv_1x1(y)
-        y, _ = coupling_layer(y)
-    rev_x = y
-    for _ in range(4 * 32):
-        rev_x = rev_coupling_layer(rev_x)
-        rev_x = rev_conv_1x1(rev_x)
-        reverse_variables.append(rev_x)
-        rev_x = rev_actnorm(rev_x)
-    error = cf.mean(abs(x - rev_x))
-    reverse_variables.reverse()
-
-    for f, r in zip(forward_variables, reverse_variables):
-        y, _ = actnorm(f)
-        print("error", cf.mean_absolute_error(y, r))
     print(error)
 
 

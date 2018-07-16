@@ -6,13 +6,15 @@ import chainer
 import chainer.functions as cf
 import cupy
 import numpy as np
-from chainer.backends import cuda
-from PIL import Image
+import matplotlib.pyplot as plt
 
-sys.path.append(os.path.join("..", "..", ".."))
+from chainer.backends import cuda
+from tabulate import tabulate
+
+sys.path.append(os.path.join("..", "..", "..", ".."))
 import glow
 
-sys.path.append("..")
+sys.path.append(os.path.join("..", ".."))
 from model import InferenceModel, GenerativeModel, to_cpu
 from hyperparams import Hyperparameters
 
@@ -34,6 +36,14 @@ def main():
         xp = cupy
 
     hyperparams = Hyperparameters(args.snapshot_path)
+    print(
+        tabulate([
+            ["levels", hyperparams.levels],
+            ["depth_per_level", hyperparams.depth_per_level],
+            ["nn_hidden_channels", hyperparams.nn_hidden_channels],
+            ["image_size", hyperparams.image_size],
+        ]))
+
     inference_model = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
     generative_model = GenerativeModel(inference_model)
 
@@ -41,23 +51,25 @@ def main():
         inference_model.to_gpu()
         generative_model.to_gpu()
 
-    z = xp.random.normal(
-        0, 1, size=(
-            1,
-            3,
-        ) + hyperparams.image_size).astype("float32")
+    while True:
+        z = xp.random.normal(
+            0, args.temperature, size=(
+                1,
+                3,
+            ) + hyperparams.image_size).astype("float32")
 
-    with chainer.using_config("train", False), chainer.using_config(
-            "enable_backprop", False):
-        x = generative_model(z)
-        print(x)
-        x_img = Image.fromarray(make_uint8(x.data[0]))
-        x_img.show()
+        with chainer.using_config("train", False), chainer.using_config(
+                "enable_backprop", False):
+            x = generative_model(z)
+            x_img = make_uint8(x.data[0])
+            plt.imshow(x_img, interpolation="none")
+            plt.pause(.01)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--snapshot-path", type=str, default="../snapshot")
+    parser.add_argument("--snapshot-path", type=str, required=True)
+    parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
     args = parser.parse_args()
     main()
