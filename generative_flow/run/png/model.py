@@ -164,8 +164,8 @@ class InferenceModel():
                 std = xp.std(out.data, axis=(0, 2, 3))
 
                 params = actnorm.params
-                params.scale.W.data = 1.0 / std
-                params.bias.b.data = -mean
+                params.scale.W.data = std
+                params.bias.b.data = mean
 
                 out, _ = actnorm(out)
                 out, _ = conv_1x1(out)
@@ -179,8 +179,8 @@ class InferenceModel():
 def reverse_actnorm(layer: glow.nn.chainer.actnorm.Actnorm):
     source = layer.params
     target = glow.nn.chainer.actnorm.Parameters(source.channels)
-    target.scale.W.data = 1.0 / source.scale.W.data
-    target.bias.b.data = -source.bias.b.data
+    target.scale.W.data[...] = to_cpu(source.scale.W.data)
+    target.bias.b.data[...] = to_cpu(source.bias.b.data)
     return glow.nn.chainer.actnorm.ReverseActnorm(params=target)
 
 

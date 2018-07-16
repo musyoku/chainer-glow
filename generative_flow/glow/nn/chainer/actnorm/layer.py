@@ -8,10 +8,12 @@ from .parameters import Parameters
 class Actnorm(base.Actnorm):
     def __init__(self, params: Parameters):
         self.params = params
+        self.bias = self.params.bias.b
+        self.scale = self.params.scale.W
 
     def __call__(self, x):
-        inter = self.params.bias(x)
-        y = self.params.scale(inter)
+        inter = cf.bias(x, -self.bias)
+        y = cf.scale(inter, 1.0 / self.scale)
         log_det = self.compute_log_determinant(x)
         return y, log_det
 
@@ -24,8 +26,10 @@ class Actnorm(base.Actnorm):
 class ReverseActnorm(base.ReverseActnorm):
     def __init__(self, params: Parameters):
         self.params = params
+        self.bias = self.params.bias.b
+        self.scale = self.params.scale.W
 
     def __call__(self, y):
-        inter = self.params.scale(y)
-        x = self.params.bias(y)
+        inter = cf.scale(y, self.scale)
+        x = cf.bias(inter, self.bias)
         return x
