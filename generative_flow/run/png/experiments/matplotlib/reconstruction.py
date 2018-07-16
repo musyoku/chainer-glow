@@ -68,8 +68,10 @@ def main():
         generative_model.to_gpu()
 
     fig = plt.figure(figsize=(8, 4))
-    with chainer.using_config("train", False), chainer.using_config(
-            "enable_backprop", False):
+    left = fig.add_subplot(1, 2, 1)
+    right = fig.add_subplot(1, 2, 2)
+
+    with chainer.no_backprop_mode():
         while True:
             for data_indices in iterator:
                 x = to_gpu(dataset[data_indices])
@@ -79,11 +81,8 @@ def main():
                 x_img = make_uint8(x[0])
                 rev_x_img = make_uint8(rev_x.data[0])
 
-                fig.add_subplot(1, 2, 1)
-                plt.imshow(x_img, interpolation="none")
-
-                fig.add_subplot(1, 2, 2)
-                plt.imshow(rev_x_img, interpolation="none")
+                left.imshow(x_img, interpolation="none")
+                right.imshow(rev_x_img, interpolation="none")
 
                 plt.pause(.01)
 

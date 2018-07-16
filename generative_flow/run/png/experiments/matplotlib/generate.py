@@ -58,8 +58,7 @@ def main():
                 3,
             ) + hyperparams.image_size).astype("float32")
 
-        with chainer.using_config("train", False), chainer.using_config(
-                "enable_backprop", False):
+        with chainer.no_backprop_mode():
             x = generative_model(z)
             x_img = make_uint8(x.data[0])
             plt.imshow(x_img, interpolation="none")

@@ -86,10 +86,11 @@ def main():
     optimizer = Optimizer(model.parameters)
 
     # Data dependent initialization
-    for batch_index, data_indices in enumerate(iterator):
-        x = to_gpu(dataset[data_indices])
-        model.initialize_actnorm_weights(x)
-        break
+    if model.need_initialize:
+        for batch_index, data_indices in enumerate(iterator):
+            x = to_gpu(dataset[data_indices])
+            model.initialize_actnorm_weights(x)
+            break
 
     current_training_step = 0
 
@@ -98,7 +99,7 @@ def main():
         sum_loss = 0
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
-            factorized_z, logdet = model(x)
+            factorized_z, logdet = model(x, reduce_memory=args.reduce_memory)
             negative_log_likelihood = 0
             for zi in factorized_z:
                 prior_mean = xp.zeros(zi.shape, dtype="float32")
@@ -110,10 +111,15 @@ def main():
             loss.backward()
             optimizer.update(current_training_step)
 
+            current_training_step += 1
+
             sum_loss += float(loss.data)
             printr("Iteration {}: Batch {} / {} - loss: {:.3f}".format(
                 iteration + 1, batch_index + 1, len(iterator),
                 float(loss.data)))
+
+            if batch_index % 100 == 0:
+                model.serialize(args.snapshot_path)
 
         print("\033[2KIteration {} - loss: {:.3f} - step: {}".format(
             iteration + 1, sum_loss / len(iterator), current_training_step))
@@ -121,8 +127,7 @@ def main():
 
         # Check model stability
         if True:
-            with chainer.using_config("train", False), chainer.using_config(
-                    "enable_backprop", False):
+            with chainer.no_backprop_mode():
                 generative_model = GenerativeModel(model)
                 if using_gpu:
                     generative_model.to_gpu()
@@ -139,6 +144,7 @@ if __name__ == "__main__":
         "--snapshot-path", "-snapshot", type=str, default="snapshot")
     parser.add_argument("--batch-size", "-b", type=int, default=32)
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
+    parser.add_argument("--reduce-memory", action="store_true")
 
     parser.add_argument("--training-steps", "-i", type=int, default=100000)
     parser.add_argument("--depth-per-level", "-depth", type=int, default=32)

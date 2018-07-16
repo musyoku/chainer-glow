@@ -33,6 +33,7 @@ class InferenceModel():
         assert isinstance(hyperparams, Hyperparameters)
         self.hyperparams = hyperparams
         self.parameters = chainer.Chain()
+        self.need_initialize = True
         channels_x = 3  # RGB
 
         with self.parameters.init_scope():
@@ -89,16 +90,36 @@ class InferenceModel():
         if hdf5_path:
             try:
                 filepath = Path(hdf5_path) / self.params_filename
-                print("loading {}".format(filepath))
-                load_hdf5(filepath, self.parameters)
-            except:
-                pass
+                if filepath.exists():
+                    print("loading {}".format(filepath))
+                    load_hdf5(filepath, self.parameters)
+                    self.need_initialize = False
+            except Exception as error:
+                print(error)
 
-    def __call__(self, x):
+    def forward_onestep(self, level, depth, x):
+        actnorm, conv_1x1, coupling_layer = self[level][depth]
+        sum_logdet = 0
+        x, logdet = actnorm(x)
+        sum_logdet += logdet
+
+        x, logdet = conv_1x1(x)
+        sum_logdet += logdet
+
+        x, logdet = coupling_layer(x)
+        sum_logdet += logdet
+        return x, sum_logdet
+
+    def __call__(self, x, reduce_memory=False):
         z = []
         levels = self.hyperparams.levels
         depth_per_level = self.hyperparams.depth_per_level
         sum_logdet = 0
+
+        def closure(layer):
+            def func(x):
+                return layer(x)
+            return func
 
         for level in range(levels):
 
@@ -108,14 +129,23 @@ class InferenceModel():
             # step of flow
             for depth in range(depth_per_level):
                 actnorm, conv_1x1, coupling_layer = self[level][depth]
-                out, logdet = actnorm(out)
-                sum_logdet += logdet
+
+                if reduce_memory:
+                    out, logdet = cf.forget(closure(actnorm), out)
+                    sum_logdet += logdet
+                else:
+                    out, logdet = actnorm(out)
+                    sum_logdet += logdet
 
                 out, logdet = conv_1x1(out)
                 sum_logdet += logdet
 
-                out, logdet = coupling_layer(out)
-                sum_logdet += logdet
+                if reduce_memory:
+                    out, logdet = cf.forget(closure(coupling_layer), out)
+                    sum_logdet += logdet
+                else:
+                    out, logdet = coupling_layer(out)
+                    sum_logdet += logdet
 
             # split
             if level == levels - 1:
