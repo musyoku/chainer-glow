@@ -16,3 +16,4 @@
 # ignore
 .vscode
 build
+*.yml
