@@ -54,7 +54,7 @@ def main():
     images = []
     for filepath in files:
         image = np.array(Image.open(filepath)).astype("float32")
-        image = (image / 255.0 * 2.0) - 1.0
+        image = image / 256.0 - 0.5
         image = image.transpose((2, 0, 1))
         images.append(image)
     images = np.asanyarray(images)
@@ -99,6 +99,7 @@ def main():
         sum_loss = 0
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
+            x += xp.random.uniform(0, 1.0 / 256.0, size=x.shape)
             factorized_z, logdet = encoder(x, reduce_memory=args.reduce_memory)
             negative_log_likelihood = 0
             for zi in factorized_z:
@@ -106,7 +107,9 @@ def main():
                 prior_ln_var = prior_mean
                 negative_log_likelihood += cf.gaussian_nll(
                     zi, prior_mean, prior_ln_var)
-            loss = (negative_log_likelihood - logdet) / args.batch_size
+            loss = (
+                negative_log_likelihood - logdet
+            ) / args.batch_size / hyperparams.image_size[0] / hyperparams.image_size[1]
             encoder.cleargrads()
             loss.backward()
             optimizer.update(current_training_step)
@@ -132,9 +135,12 @@ def main():
                 rev_x = decoder(factorized_z)
                 reconstruction_error = float(cf.mean(abs(x - rev_x)).data)
 
-        print("\033[2KIteration {} - loss: {:.3f} - reconstruction error: {}  - step: {}".format(
-            iteration + 1, sum_loss / len(iterator), reconstruction_error, current_training_step))
+        print(
+            "\033[2KIteration {} - loss: {:.5f} - reconstruction error: {:.5f}  - step: {}".
+            format(iteration + 1, sum_loss / len(iterator),
+                   reconstruction_error, current_training_step))
         encoder.serialize(args.snapshot_path)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -15,8 +15,8 @@ class NonlinearMapping(base.NonlinearMapping):
         out = cf.relu(self.params.conv_2(out))
         out = self.params.conv_3(out)
         log_scale = out[:, 0::2]
-        translation = out[:, 1::2]
-        return log_scale, translation
+        bias = out[:, 1::2]
+        return log_scale, bias
 
 
 class AffineCoupling(base.AffineCoupling):
@@ -26,10 +26,10 @@ class AffineCoupling(base.AffineCoupling):
     def __call__(self, x):
         xa = x[:, 0::2]
         xb = x[:, 1::2]
-        log_scale, translation = self.nn(xb)
+        log_scale, bias = self.nn(xb)
         # scale = cf.exp(log_scale)
         scale = cf.sigmoid(log_scale + 2)
-        ya = scale * xa + translation
+        ya = scale * (xa + bias)
         yb = xb
         y = cf.concat((ya, yb), axis=1)
         log_det = self.compute_log_determinant(scale)
@@ -46,10 +46,10 @@ class ReverseAffineCoupling(base.ReverseAffineCoupling):
     def __call__(self, y):
         ya = y[:, 0::2]
         yb = y[:, 1::2]
-        log_scale, translation = self.nn(yb)
+        log_scale, bias = self.nn(yb)
         # scale = cf.exp(log_scale)
         scale = cf.sigmoid(log_scale + 2)
-        xa = (ya - translation) / scale
+        xa = ya / scale - bias
         xb = yb
         x = cf.concat((xa, xb), axis=1)
         return x
