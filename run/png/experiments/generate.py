@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 from chainer.backends import cuda
 from tabulate import tabulate
 
-sys.path.append(os.path.join("..", "..", "..", ".."))
+sys.path.append(os.path.join("..", "..", ".."))
 import glow
 
-sys.path.append(os.path.join("..", ".."))
+sys.path.append("..")
 from model import InferenceModel, GenerativeModel, to_cpu
 from hyperparams import Hyperparameters
 

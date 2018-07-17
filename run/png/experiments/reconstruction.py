@@ -13,10 +13,10 @@ from tabulate import tabulate
 from PIL import Image
 from pathlib import Path
 
-sys.path.append(os.path.join("..", "..", "..", ".."))
+sys.path.append(os.path.join("..", "..", ".."))
 import glow
 
-sys.path.append(os.path.join("..", ".."))
+sys.path.append("..")
 from model import InferenceModel, GenerativeModel, to_cpu, to_gpu
 from hyperparams import Hyperparameters
 
@@ -41,7 +41,7 @@ def main():
     images = []
     for filepath in files:
         image = np.array(Image.open(filepath)).astype("float32")
-        image = (image / 255.0 * 2.0) - 1.0
+        image = image / 255.0 - 0.5
         image = image.transpose((2, 0, 1))
         images.append(image)
     images = np.asanyarray(images)
@@ -75,8 +75,15 @@ def main():
         while True:
             for data_indices in iterator:
                 x = to_gpu(dataset[data_indices])
+                x += xp.random.uniform(0.0, 1.0 / 256.0, size=x.shape)
                 factorized_z, _ = encoder(x)
                 rev_x = decoder(factorized_z)
+
+                print(9)
+                print(xp.mean(x), xp.var(x), xp.amin(x), xp.amax(x))
+                print(
+                    xp.mean(rev_x.data), xp.var(rev_x.data),
+                    xp.amin(rev_x.data), xp.amax(rev_x.data))
 
                 x_img = make_uint8(x[0])
                 rev_x_img = make_uint8(rev_x.data[0])

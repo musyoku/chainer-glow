@@ -121,7 +121,7 @@ class InferenceModel():
                 return layer(x)
 
             return func
-            
+
         out = x
         for level in range(levels):
 
@@ -196,8 +196,8 @@ class InferenceModel():
                 std = xp.std(out.data, axis=(0, 2, 3))
 
                 params = actnorm.params
-                params.scale.W.data = std
-                params.bias.b.data = mean
+                params.scale.W.data = 1.0 / std
+                params.bias.b.data = -mean
 
                 out, _ = actnorm(out)
                 out, _ = conv_1x1(out)
@@ -224,11 +224,11 @@ def reverse_conv_1x1(
     source = layer.params
     target = glow.nn.chainer.invertible_1x1_conv.Parameters(source.channels)
     source_weight = source.conv.W.data
-    # make it a square matrix
+    # square matrix
     weight = source_weight.reshape(source_weight.shape[:2])
     xp = cuda.get_array_module(weight)
     inv_weight = xp.linalg.inv(weight)
-    # make it a conv kernel
+    # conv kernel
     target.conv.W.data = to_cpu(inv_weight.reshape(inv_weight.shape + (1, 1)))
     return glow.nn.chainer.invertible_1x1_conv.ReverseInvertible1x1Conv(
         params=target)
@@ -292,8 +292,9 @@ class GenerativeModel():
             if level == self.hyperparams.levels - 1:
                 factorized_z.append(z)
             else:
-                zi = z[:, 0::2]
-                z = z[:, 1::2]
+                n = z.shape[1]
+                zi = z[:, :n // 2]
+                z = z[:, n // 2:]
                 factorized_z.append(zi)
         return factorized_z
 

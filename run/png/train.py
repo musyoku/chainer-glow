@@ -56,7 +56,7 @@ def main():
     images = []
     for filepath in files:
         image = np.array(Image.open(filepath)).astype("float32")
-        image = image / 256.0 - 0.5
+        image = image / 255.0 - 0.5
         image = image.transpose((2, 0, 1))
         images.append(image)
     images = np.asanyarray(images)
@@ -97,21 +97,22 @@ def main():
     current_training_step = 0
 
     # Training loop
+    num_pixels = hyperparams.image_size[0] * hyperparams.image_size[1]
     for iteration in range(args.training_steps):
         sum_loss = 0
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
             x += xp.random.uniform(0, 1.0 / 256.0, size=x.shape)
             factorized_z, logdet = encoder(x, reduce_memory=args.reduce_memory)
+            logdet -= math.log(256.0) * num_pixels
             negative_log_likelihood = 0
             for zi in factorized_z:
                 prior_mean = xp.zeros(zi.shape, dtype="float32")
                 prior_ln_var = prior_mean
                 negative_log_likelihood += cf.gaussian_nll(
                     zi, prior_mean, prior_ln_var)
-            loss = (
-                negative_log_likelihood - logdet
-            ) / args.batch_size / hyperparams.image_size[0] / hyperparams.image_size[1]
+            denom = args.batch_size * num_pixels
+            loss = (negative_log_likelihood - logdet) / denom
             encoder.cleargrads()
             loss.backward()
             optimizer.update(current_training_step)
@@ -119,9 +120,12 @@ def main():
             current_training_step += 1
 
             sum_loss += float(loss.data)
-            printr("Iteration {}: Batch {} / {} - loss: {:.3f}".format(
-                iteration + 1, batch_index + 1, len(iterator),
-                float(loss.data)))
+            printr(
+                "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - log_det: {:.8f}".
+                format(iteration + 1, batch_index + 1, len(iterator),
+                       float(loss.data),
+                       float(negative_log_likelihood.data) / denom,
+                       float(logdet.data) / denom))
 
             if batch_index % 100 == 0:
                 encoder.serialize(args.snapshot_path)

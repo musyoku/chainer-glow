@@ -19,8 +19,7 @@ def check_layer():
     channels_x = 128
     batchsize = 1
 
-    x = xp.random.normal(size=(batchsize, channels_x, 5,
-                               5)).astype("float32")
+    x = xp.random.normal(size=(batchsize, channels_x, 1, 1)).astype("float32")
 
     # actnorm
     params = glow.nn.chainer.actnorm.Parameters(channels=channels_x)
@@ -44,24 +43,32 @@ def check_layer():
     print(error)
 
     # invertible 1x1 convolution
-    params = glow.nn.chainer.invertible_1x1_conv.Parameters(
-        channels=channels_x)
-    params.to_gpu()
+    layers = []
+    size = 4 * 32
+    for _ in range(size):
+        params = glow.nn.chainer.invertible_1x1_conv.Parameters(
+            channels=channels_x)
+        params.to_gpu()
 
-    shape = params.conv.W.data.shape[:2]
-    noise = xp.random.normal(
-        0.0, 1, size=shape).astype("float32").reshape(shape + (1, 1))
-    params.conv.W.data += noise
+        shape = params.conv.W.data.shape[:2]
+        noise = xp.random.normal(
+            0.0, 1, size=shape).astype("float32").reshape(shape + (1, 1))
+        params.conv.W.data += noise
 
-    conv_1x1 = glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv(params)
-    rev_conv_1x1 = reverse_conv_1x1(conv_1x1)
-    rev_conv_1x1.params.to_gpu()
+        conv_1x1 = glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv(
+            params)
+        rev_conv_1x1 = reverse_conv_1x1(conv_1x1)
+        rev_conv_1x1.params.to_gpu()
+
+        layers.append((conv_1x1, rev_conv_1x1))
 
     y = x
-    for _ in range(4 * 32):
+    for k in range(size):
+        conv_1x1 = layers[k][0]
         y, _ = conv_1x1(y)
     rev_x = y
-    for _ in range(4 * 32):
+    for k in range(size):
+        rev_conv_1x1 = layers[size - k - 1][1]
         rev_x = rev_conv_1x1(rev_x)
     error = cf.mean(abs(x - rev_x))
     print(error)
@@ -93,10 +100,9 @@ def check_layer():
     error = cf.mean(abs(x - rev_x))
     print(error)
 
-
 def check_model():
-    depth_per_level = 2
-    levels = 5
+    depth_per_level = 16
+    levels = 3
     batchsize = 3
 
     x = xp.random.normal(0, 1, size=(batchsize, 3, 64, 64)).astype("float32")
@@ -106,12 +112,13 @@ def check_model():
     hyperparams.levels = levels
     hyperparams.nn_hidden_channels = 32
 
-    inference_model = InferenceModel(hyperparams)
-    inference_model(x)
+    encoder = InferenceModel(hyperparams)
+    encoder.to_gpu()
+    _ = encoder(x)
 
     for level in range(levels):
         for depth in range(depth_per_level):
-            actnorm, conv_1x1, coupling_layer = inference_model[level][depth]
+            actnorm, conv_1x1, coupling_layer = encoder[level][depth]
 
             params = actnorm.params
             params.scale.W.data = xp.random.normal(
@@ -120,7 +127,7 @@ def check_model():
                 0.0, 0.1, size=params.bias.b.data.shape).astype("float32")
 
             params = conv_1x1.params
-            shape = params.conv.W.data.shape[:2]
+            shape = params.conv.W.data.shape
             noise = xp.random.normal(0.0, 0.01, size=shape).astype("float32")
             params.conv.W.data += noise
 
@@ -132,17 +139,17 @@ def check_model():
             params.conv_3.W.data = xp.zeros(
                 params.conv_3.W.data.shape, dtype="float32")
 
-    generative_model = GenerativeModel(inference_model)
+    decoder = encoder.reverse()
+    decoder.to_gpu()
 
-    factorized_z, logdet = inference_model(x)
-    rev_x = generative_model(factorized_z)
+    factorized_z, logdet = encoder(x)
+    rev_x = decoder(factorized_z)
     error = cf.mean(abs(x - rev_x))
     print(error)
 
 
 def main():
-    with chainer.using_config("train", False), chainer.using_config(
-            "enable_backprop", False):
+    with chainer.no_backprop_mode():
         check_layer()
         check_model()
 
