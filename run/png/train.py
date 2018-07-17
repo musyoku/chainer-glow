@@ -13,6 +13,8 @@ import chainer.functions as cf
 import cupy
 import numpy as np
 from chainer.backends import cuda
+
+sys.path.append(".")
 sys.path.append(os.path.join("..", ".."))
 import glow
 
