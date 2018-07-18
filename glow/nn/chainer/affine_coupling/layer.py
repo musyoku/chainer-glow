@@ -24,8 +24,8 @@ class AffineCoupling(base.AffineCoupling):
 
     def __call__(self, x):
         split = x.shape[1] // 2
-        xa = x[:, split:]
-        xb = x[:, :split]
+        xa = x[:, :split]
+        xb = x[:, split:]
         log_scale, bias = self.nn(xb)
         # scale = cf.exp(log_scale)
         scale = cf.sigmoid(log_scale + 2)
@@ -45,8 +45,8 @@ class ReverseAffineCoupling(base.ReverseAffineCoupling):
 
     def __call__(self, y):
         split = y.shape[1] // 2
-        ya = y[:, split:]
-        yb = y[:, :split]
+        ya = y[:, :split]
+        yb = y[:, split:]
         log_scale, bias = self.nn(yb)
         # scale = cf.exp(log_scale)
         scale = cf.sigmoid(log_scale + 2)
