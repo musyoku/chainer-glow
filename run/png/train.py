@@ -148,7 +148,7 @@ def main():
 
         # Check model reversibility
         rev_x_mean = None
-        rev_x_std = None
+        rev_x_var = None
         z_mean = None
         z_var = None
         if True:

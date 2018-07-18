@@ -24,9 +24,16 @@ class Parameters(chainer.Chain):
                 stride=1,
                 pad=0,
                 initialW=(HeNormal(0.1)))
-            self.conv_3 = L.Convolution2D(
+            self.conv_scale = L.Convolution2D(
                 channels_h,
-                channels_x,
+                channels_x // 2,
+                ksize=3,
+                stride=1,
+                pad=1,
+                initialW=Zero())
+            self.conv_bias = L.Convolution2D(
+                channels_h,
+                channels_x // 2,
                 ksize=3,
                 stride=1,
                 pad=1,

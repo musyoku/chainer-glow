@@ -241,7 +241,8 @@ def reverse_coupling_layer(
         source.channels_x, source.channels_h)
     target.conv_1.W.data[...] = to_cpu(source.conv_1.W.data)
     target.conv_2.W.data[...] = to_cpu(source.conv_2.W.data)
-    target.conv_3.W.data[...] = to_cpu(source.conv_3.W.data)
+    target.conv_scale.W.data[...] = to_cpu(source.conv_scale.W.data)
+    target.conv_bias.W.data[...] = to_cpu(source.conv_bias.W.data)
     nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
         params=target)
     return glow.nn.chainer.affine_coupling.ReverseAffineCoupling(
