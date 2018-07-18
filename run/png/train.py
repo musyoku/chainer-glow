@@ -40,6 +40,16 @@ def printr(string):
     sys.stdout.write("\r")
 
 
+# return z of same shape as x
+def merge_factorized_z(factorized_z, factor=2):
+    z = None
+    for zi in reversed(factorized_z):
+        xp = cuda.get_array_module(zi.data)
+        z = zi.data if z is None else xp.concatenate((zi.data, z), axis=1)
+        z = glow.nn.chainer.functions.unsqueeze(z, factor, xp)
+    return z
+
+
 def main():
     try:
         os.mkdir(args.snapshot_path)
@@ -61,10 +71,18 @@ def main():
         images.append(image)
     images = np.asanyarray(images)
 
+    x_mean = np.mean(images)
+    x_var = np.var(images)
+
+
     dataset = glow.dataset.png.Dataset(images)
     iterator = glow.dataset.png.Iterator(dataset, batch_size=args.batch_size)
 
-    print(tabulate([["#image", len(dataset)]]))
+    print(tabulate([
+        ["#", len(dataset)],
+        ["mean", x_mean],
+        ["var", x_var],
+    ]))
 
     hyperparams = Hyperparameters(args.snapshot_path)
     hyperparams.levels = args.levels
@@ -107,10 +125,8 @@ def main():
             logdet -= math.log(256.0) * num_pixels
             negative_log_likelihood = 0
             for zi in factorized_z:
-                prior_mean = xp.zeros(zi.shape, dtype="float32")
-                prior_ln_var = prior_mean
-                negative_log_likelihood += cf.gaussian_nll(
-                    zi, prior_mean, prior_ln_var)
+                negative_log_likelihood += glow.nn.chainer.functions.standard_normal_nll(
+                    zi)
             denom = args.batch_size * num_pixels
             loss = (negative_log_likelihood - logdet) / denom
             encoder.cleargrads()
@@ -131,7 +147,10 @@ def main():
                 encoder.serialize(args.snapshot_path)
 
         # Check model reversibility
-        reconstruction_error = None
+        rev_x_mean = None
+        rev_x_std = None
+        z_mean = None
+        z_var = None
         if True:
             with chainer.no_backprop_mode():
                 decoder = encoder.reverse()
@@ -139,12 +158,17 @@ def main():
                     decoder.to_gpu()
                 factorized_z, logdet = encoder(x)
                 rev_x = decoder(factorized_z)
-                reconstruction_error = float(cf.mean(abs(x - rev_x)).data)
+                rev_x_mean = float(xp.mean(rev_x.data))
+                rev_x_var = float(xp.var(rev_x.data))
+
+                z = merge_factorized_z(factorized_z)
+                z_mean = float(xp.mean(z))
+                z_var = float(xp.var(z))
 
         print(
-            "\033[2KIteration {} - loss: {:.5f} - reconstruction error: {:.5f}  - step: {}".
-            format(iteration + 1, sum_loss / len(iterator),
-                   reconstruction_error, current_training_step))
+            "\033[2KIteration {} - loss: {:.5f} - z: mean={:.5f} var={:.5f} - rev_x: mean={:.5f} var={:.5f}".
+            format(iteration + 1, sum_loss / len(iterator), z_mean, z_var,
+                   rev_x_mean, rev_x_var))
         encoder.serialize(args.snapshot_path)
 
 

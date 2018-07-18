@@ -92,7 +92,7 @@ class InferenceModel():
                 filepath = Path(hdf5_path) / self.params_filename
                 if filepath.exists():
                     print("loading {}".format(filepath))
-                    load_hdf5(filepath, self.parameters)
+                    load_hdf5(str(filepath), self.parameters)
                     self.need_initialize = False
             except Exception as error:
                 print(error)
@@ -303,8 +303,9 @@ class GenerativeModel():
             factorized_z = z
         else:
             factorized_z = self.factor_z(z)
-
-        out = factorized_z.pop(-1)
+        assert len(z) > 0
+        i = -1
+        out = factorized_z[i]
         for level in range(self.hyperparams.levels - 1, -1, -1):
             for depth in range(self.hyperparams.depth_per_level - 1, -1, -1):
                 rev_coupling_layer, rev_conv_1x1, rev_actnorm = self[level][
@@ -316,7 +317,8 @@ class GenerativeModel():
 
             out = unsqueeze(out)
             if level > 0:
-                zi = factorized_z.pop(-1)
+                i -= 1
+                zi = factorized_z[i]
                 out = cf.concat((zi, out), axis=1)
 
         return out
