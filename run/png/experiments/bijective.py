@@ -79,12 +79,6 @@ def main():
                 factorized_z, _ = encoder(x)
                 rev_x = decoder(factorized_z)
 
-                print(9)
-                print(xp.mean(x), xp.var(x), xp.amin(x), xp.amax(x))
-                print(
-                    xp.mean(rev_x.data), xp.var(rev_x.data),
-                    xp.amin(rev_x.data), xp.amax(rev_x.data))
-
                 x_img = make_uint8(x[0])
                 rev_x_img = make_uint8(rev_x.data[0])
 
