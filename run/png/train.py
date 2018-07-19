@@ -63,11 +63,15 @@ def main():
         cuda.get_device(args.gpu_device).use()
         xp = cupy
 
+    num_bins_x = 2.0**args.num_bits_x
+
     files = Path(args.dataset_path).glob("*.png")
     images = []
     for filepath in files:
         image = np.array(Image.open(filepath)).astype("float32")
-        image = image / 255.0 - 0.5
+        if args.num_bits_x < 8:
+            image = np.floor(image / (2**(8 - args.num_bits_x)))
+        image = image / num_bins_x - 0.5
         image = image.transpose((2, 0, 1))
         images.append(image)
     images = np.asanyarray(images)
@@ -89,6 +93,7 @@ def main():
     hyperparams.depth_per_level = args.depth_per_level
     hyperparams.nn_hidden_channels = args.nn_hidden_channels
     hyperparams.image_size = image.shape[1:]
+    hyperparams.num_bits_x = args.num_bits_x
     hyperparams.lu_decomposition = args.lu_decomposition
     hyperparams.serialize(args.snapshot_path)
 
@@ -124,14 +129,14 @@ def main():
 
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
-            x += xp.random.uniform(0, 1.0 / 256.0, size=x.shape)
+            x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
             factorized_z, logdet = encoder(x, reduce_memory=args.reduce_memory)
-            logdet -= math.log(256.0) * num_pixels
+            logdet -= math.log(num_bins_x) * num_pixels
             negative_log_likelihood = 0
             for zi in factorized_z:
                 negative_log_likelihood += glow.nn.chainer.functions.standard_normal_nll(
                     zi)
-            denom = args.batch_size * num_pixels
+            denom = math.log(2.0) * args.batch_size * num_pixels
             loss = (negative_log_likelihood - logdet) / denom
             encoder.cleargrads()
             loss.backward()
@@ -185,11 +190,11 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", "-b", type=int, default=32)
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
     parser.add_argument("--reduce-memory", action="store_true")
-
     parser.add_argument("--training-steps", "-i", type=int, default=100000)
     parser.add_argument("--depth-per-level", "-depth", type=int, default=32)
     parser.add_argument("--levels", "-levels", type=int, default=5)
     parser.add_argument("--nn-hidden-channels", "-nn", type=int, default=512)
+    parser.add_argument("--num-bits-x", type=int, default=8)
     parser.add_argument("--lu-decomposition", "-lu", action="store_true")
     args = parser.parse_args()
     main()

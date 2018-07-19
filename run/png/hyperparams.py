@@ -6,6 +6,7 @@ class Hyperparameters():
     def __init__(self, path=None):
         self.depth_per_level = 32
         self.levels = 6
+        self.num_bits_x = 8
         self.squeeze_factor = 2
         self.nn_hidden_channels = 512
         self.image_size = (256, 256)
@@ -33,6 +34,7 @@ class Hyperparameters():
                     "levels": self.levels,
                     "squeeze_factor": self.squeeze_factor,
                     "nn_hidden_channels": self.nn_hidden_channels,
+                    "num_bits_x": self.num_bits_x,
                     "image_size": self.image_size,
                     "lu_decomposition": self.lu_decomposition,
                 },

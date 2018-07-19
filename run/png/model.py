@@ -198,12 +198,12 @@ class InferenceModel():
 
             for depth in range(depth_per_level):
                 actnorm, conv_1x1, coupling_layer = self[level][depth]
-                mean = xp.mean(out.data, axis=(0, 2, 3))
-                std = xp.std(out.data, axis=(0, 2, 3))
+                mean = xp.mean(out.data, axis=(0, 2, 3), keepdims=True)
+                std = xp.std(out.data, axis=(0, 2, 3), keepdims=True)
 
                 params = actnorm.params
-                params.scale.W.data = 1.0 / std
-                params.bias.b.data = -mean
+                params.scale.data = 1.0 / std
+                params.bias.data = -mean
 
                 out, _ = actnorm(out)
                 out, _ = conv_1x1(out)

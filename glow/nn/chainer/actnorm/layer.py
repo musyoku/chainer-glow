@@ -12,8 +12,8 @@ class Actnorm(base.Actnorm):
         self.scale = self.params.scale
 
     def __call__(self, x):
-        y = x + self.bias
-        y = y * self.scale
+        y = x + cf.broadcast_to(self.bias, x.shape)
+        y = y * cf.broadcast_to(self.scale, x.shape)
         log_det = self.compute_log_determinant(x)
         return y, log_det
 
@@ -29,6 +29,6 @@ class ReverseActnorm(base.ReverseActnorm):
         self.scale = self.params.scale
 
     def __call__(self, y):
-        x = y / self.scale
-        x = x - self.bias
+        x = y / cf.broadcast_to(self.scale, y.shape)
+        x = x - cf.broadcast_to(self.bias, y.shape)
         return x
