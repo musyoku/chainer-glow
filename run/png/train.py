@@ -89,8 +89,8 @@ def main():
     hyperparams.depth_per_level = args.depth_per_level
     hyperparams.nn_hidden_channels = args.nn_hidden_channels
     hyperparams.image_size = image.shape[1:]
-    hyperparams.serialize(args.snapshot_path)
     hyperparams.lu_decomposition = args.lu_decomposition
+    hyperparams.serialize(args.snapshot_path)
 
     print(
         tabulate([

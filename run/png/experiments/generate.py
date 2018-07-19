@@ -42,6 +42,7 @@ def main():
             ["depth_per_level", hyperparams.depth_per_level],
             ["nn_hidden_channels", hyperparams.nn_hidden_channels],
             ["image_size", hyperparams.image_size],
+            ["lu_decomposition", hyperparams.lu_decomposition],
         ]))
 
     encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)

@@ -22,22 +22,28 @@ def check_layer():
     x = xp.random.normal(size=(batchsize, channels_x, 1, 1)).astype("float32")
 
     # actnorm
-    params = glow.nn.chainer.actnorm.Parameters(channels=channels_x)
-    params.to_gpu()
+    layers = []
+    size = 4 * 32
+    for _ in range(size):
+        params = glow.nn.chainer.actnorm.Parameters(channels=channels_x)
+        params.to_gpu()
 
-    params.scale.W.data = xp.random.normal(
-        1.0, 1, size=params.scale.W.data.shape).astype("float32")
-    params.bias.b.data = xp.random.normal(
-        0.0, 1, size=params.bias.b.data.shape).astype("float32")
-    actnorm = glow.nn.chainer.actnorm.Actnorm(params)
-    rev_actnorm = reverse_actnorm(actnorm)
-    rev_actnorm.params.to_gpu()
+        params.scale.data = xp.random.normal(
+            1.0, 1, size=params.scale.data.shape).astype("float32")
+        params.bias.data = xp.random.normal(
+            0.0, 1, size=params.bias.data.shape).astype("float32")
+        actnorm = glow.nn.chainer.actnorm.Actnorm(params)
+        rev_actnorm = reverse_actnorm(actnorm)
+        rev_actnorm.params.to_gpu()
+        layers.append((actnorm, rev_actnorm))
 
     y = x
-    for _ in range(4 * 32):
+    for k in range(4 * 32):
+        actnorm = layers[k][0]
         y, _ = actnorm(y)
     rev_x = y
-    for _ in range(4 * 32):
+    for k in range(4 * 32):
+        rev_actnorm = layers[size - k - 1][1]
         rev_x = rev_actnorm(rev_x)
     error = cf.mean(abs(x - rev_x))
     print(error)
@@ -73,6 +79,31 @@ def check_layer():
     error = cf.mean(abs(x - rev_x))
     print(error)
 
+    # invertible 1x1 convolution (LU)
+    layers = []
+    size = 4 * 32
+    for _ in range(size):
+        params = glow.nn.chainer.invertible_1x1_conv.LUParameters(
+            channels=channels_x)
+        params.to_gpu()
+        conv_1x1 = glow.nn.chainer.invertible_1x1_conv.LUInvertible1x1Conv(
+            params)
+        rev_conv_1x1 = reverse_conv_1x1(conv_1x1)
+        rev_conv_1x1.params.to_gpu()
+
+        layers.append((conv_1x1, rev_conv_1x1))
+
+    y = x
+    for k in range(size):
+        conv_1x1 = layers[k][0]
+        y, _ = conv_1x1(y)
+    rev_x = y
+    for k in range(size):
+        rev_conv_1x1 = layers[size - k - 1][1]
+        rev_x = rev_conv_1x1(rev_x)
+    error = cf.mean(abs(x - rev_x))
+    print(error)
+
     # affine coupling layer
     params = glow.nn.chainer.affine_coupling.Parameters(
         channels_x=channels_x, channels_h=128)
@@ -82,8 +113,6 @@ def check_layer():
         0.0, 1, size=params.conv_1.W.data.shape).astype("float32")
     params.conv_2.W.data = xp.random.normal(
         0.0, 1, size=params.conv_2.W.data.shape).astype("float32")
-    params.conv_3.W.data = xp.zeros(
-        params.conv_3.W.data.shape, dtype="float32")
     nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
         params)
     coupling_layer = glow.nn.chainer.affine_coupling.AffineCoupling(

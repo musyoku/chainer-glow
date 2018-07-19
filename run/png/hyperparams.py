@@ -34,6 +34,7 @@ class Hyperparameters():
                     "squeeze_factor": self.squeeze_factor,
                     "nn_hidden_channels": self.nn_hidden_channels,
                     "image_size": self.image_size,
+                    "lu_decomposition": self.lu_decomposition,
                 },
                 f,
                 indent=4,

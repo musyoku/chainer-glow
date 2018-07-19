@@ -220,8 +220,8 @@ class InferenceModel():
 def reverse_actnorm(layer: glow.nn.chainer.actnorm.Actnorm):
     source = layer.params
     target = glow.nn.chainer.actnorm.Parameters(source.channels)
-    target.scale.W.data[...] = to_cpu(source.scale.W.data)
-    target.bias.b.data[...] = to_cpu(source.bias.b.data)
+    target.scale.data[...] = to_cpu(source.scale.data)
+    target.bias.data[...] = to_cpu(source.bias.data)
     return glow.nn.chainer.actnorm.ReverseActnorm(params=target)
 
 
@@ -247,7 +247,7 @@ def reverse_conv_1x1(layer):
         source = layer.params
         target = glow.nn.chainer.invertible_1x1_conv.Parameters(
             source.channels)
-        source_weight = source.W
+        source_weight = source.W.data
         # square matrix
         weight = source_weight.reshape(source_weight.shape[:2])
         xp = cuda.get_array_module(weight)
