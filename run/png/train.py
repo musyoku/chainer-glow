@@ -3,6 +3,7 @@ import math
 import os
 import random
 import sys
+import time
 
 from tabulate import tabulate
 from PIL import Image
@@ -74,7 +75,6 @@ def main():
     x_mean = np.mean(images)
     x_var = np.var(images)
 
-
     dataset = glow.dataset.png.Dataset(images)
     iterator = glow.dataset.png.Iterator(dataset, batch_size=args.batch_size)
 
@@ -90,6 +90,7 @@ def main():
     hyperparams.nn_hidden_channels = args.nn_hidden_channels
     hyperparams.image_size = image.shape[1:]
     hyperparams.serialize(args.snapshot_path)
+    hyperparams.lu_decomposition = args.lu_decomposition
 
     print(
         tabulate([
@@ -97,6 +98,7 @@ def main():
             ["depth_per_level", hyperparams.depth_per_level],
             ["nn_hidden_channels", hyperparams.nn_hidden_channels],
             ["image_size", hyperparams.image_size],
+            ["lu_decomposition", hyperparams.lu_decomposition],
         ]))
 
     encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
@@ -113,11 +115,13 @@ def main():
             break
 
     current_training_step = 0
+    num_pixels = hyperparams.image_size[0] * hyperparams.image_size[1]
 
     # Training loop
-    num_pixels = hyperparams.image_size[0] * hyperparams.image_size[1]
     for iteration in range(args.training_steps):
         sum_loss = 0
+        start_time = time.time()
+
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
             x += xp.random.uniform(0, 1.0 / 256.0, size=x.shape)
@@ -165,10 +169,11 @@ def main():
                 z_mean = float(xp.mean(z))
                 z_var = float(xp.var(z))
 
+        elapsed_time = time.time() - start_time
         print(
-            "\033[2KIteration {} - loss: {:.5f} - z: mean={:.5f} var={:.5f} - rev_x: mean={:.5f} var={:.5f}".
+            "\033[2KIteration {} - loss: {:.5f} - z: mean={:.5f} var={:.5f} - rev_x: mean={:.5f} var={:.5f} - elapsed_time: {:.3f} min".
             format(iteration + 1, sum_loss / len(iterator), z_mean, z_var,
-                   rev_x_mean, rev_x_var))
+                   rev_x_mean, rev_x_var, elapsed_time / 60))
         encoder.serialize(args.snapshot_path)
 
 
@@ -185,5 +190,6 @@ if __name__ == "__main__":
     parser.add_argument("--depth-per-level", "-depth", type=int, default=32)
     parser.add_argument("--levels", "-levels", type=int, default=5)
     parser.add_argument("--nn-hidden-channels", "-nn", type=int, default=512)
+    parser.add_argument("--lu-decomposition", "-lu", action="store_true")
     args = parser.parse_args()
     main()

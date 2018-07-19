@@ -62,10 +62,16 @@ class InferenceModel():
                     flow.append(actnorm)
 
                     # invertible 1x1 convolution
-                    params = glow.nn.chainer.invertible_1x1_conv.Parameters(
-                        channels=channels_x)
-                    conv_1x1 = glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv(
-                        params)
+                    if hyperparams.lu_decomposition:
+                        params = glow.nn.chainer.invertible_1x1_conv.LUParameters(
+                            channels=channels_x)
+                        conv_1x1 = glow.nn.chainer.invertible_1x1_conv.LUInvertible1x1Conv(
+                            params)
+                    else:
+                        params = glow.nn.chainer.invertible_1x1_conv.Parameters(
+                            channels=channels_x)
+                        conv_1x1 = glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv(
+                            params)
                     setattr(self.parameters,
                             "invertible_1x1_conv_{}_{}".format(level,
                                                                depth), params)
@@ -219,19 +225,40 @@ def reverse_actnorm(layer: glow.nn.chainer.actnorm.Actnorm):
     return glow.nn.chainer.actnorm.ReverseActnorm(params=target)
 
 
-def reverse_conv_1x1(
-        layer: glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv):
-    source = layer.params
-    target = glow.nn.chainer.invertible_1x1_conv.Parameters(source.channels)
-    source_weight = source.conv.W.data
-    # square matrix
-    weight = source_weight.reshape(source_weight.shape[:2])
-    xp = cuda.get_array_module(weight)
-    inv_weight = xp.linalg.inv(weight)
-    # conv kernel
-    target.conv.W.data = to_cpu(inv_weight.reshape(inv_weight.shape + (1, 1)))
-    return glow.nn.chainer.invertible_1x1_conv.ReverseInvertible1x1Conv(
-        params=target)
+def reverse_conv_1x1(layer):
+    if isinstance(layer,
+                  glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv):
+        source = layer.params
+        target = glow.nn.chainer.invertible_1x1_conv.Parameters(
+            source.channels)
+        source_weight = source.conv.W.data
+        # square matrix
+        weight = source_weight.reshape(source_weight.shape[:2])
+        xp = cuda.get_array_module(weight)
+        inv_weight = xp.linalg.inv(weight)
+        # conv kernel
+        target.conv.W.data = to_cpu(
+            inv_weight.reshape(inv_weight.shape + (1, 1)))
+        return glow.nn.chainer.invertible_1x1_conv.ReverseInvertible1x1Conv(
+            params=target)
+
+    if isinstance(layer,
+                  glow.nn.chainer.invertible_1x1_conv.LUInvertible1x1Conv):
+        source = layer.params
+        target = glow.nn.chainer.invertible_1x1_conv.Parameters(
+            source.channels)
+        source_weight = source.W
+        # square matrix
+        weight = source_weight.reshape(source_weight.shape[:2])
+        xp = cuda.get_array_module(weight)
+        inv_weight = xp.linalg.inv(weight)
+        # conv kernel
+        target.conv.W.data = to_cpu(
+            inv_weight.reshape(inv_weight.shape + (1, 1)))
+        return glow.nn.chainer.invertible_1x1_conv.ReverseInvertible1x1Conv(
+            params=target)
+
+    raise NotImplementedError
 
 
 def reverse_coupling_layer(

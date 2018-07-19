@@ -9,6 +9,7 @@ class Hyperparameters():
         self.squeeze_factor = 2
         self.nn_hidden_channels = 512
         self.image_size = (256, 256)
+        self.lu_decomposition = False
 
         if path is not None:
             json_path = Path(path) / self.params_filename
