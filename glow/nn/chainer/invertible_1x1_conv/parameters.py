@@ -50,26 +50,36 @@ class LUParameters(chainer.Chain):
     def __init__(self, channels):
         super().__init__()
         self.channels = channels
+        shape = (channels, channels)
+        rotation_mat = np.linalg.qr(
+            np.random.normal(size=shape))[0].astype("float32")
+        # w_p: a permutation matrix
+        # w_l: a lower triangular matrix with ones on the diagonal
+        # w_u: an upper triangular matrix with zeros on the diagonal,
+        w_p, w_l, w_u = scipy.linalg.lu(rotation_mat)
+        s = np.diag(w_u)
+        u_mask = np.triu(np.ones_like(w_u), k=1)
+        l_mask = u_mask.T
+        l_diag = np.eye(w_l.shape[0])
+        w_u = w_u * u_mask
+
+        w_u = np.ascontiguousarray(w_u)
+        w_l = np.ascontiguousarray(w_l)
+        s = np.ascontiguousarray(s)
+        w_p = np.ascontiguousarray(w_p)
+        u_mask = np.ascontiguousarray(u_mask)
+        l_mask = np.ascontiguousarray(l_mask)
+        l_diag = np.ascontiguousarray(l_diag)
+
         with self.init_scope():
-            shape = (channels, channels)
-            rotation_mat = np.linalg.qr(
-                np.random.normal(size=shape))[0].astype("float32")
-            # w_p: a permutation matrix
-            # w_l: a lower triangular matrix with ones on the diagonal
-            # w_u: an upper triangular matrix with zeros on the diagonal,
-            w_p, w_l, w_u = scipy.linalg.lu(rotation_mat)
-            s = np.diag(w_u)
-            u_mask = np.triu(np.ones_like(w_u), k=1)
-            l_mask = u_mask.T
-            l_diag = np.eye(w_l.shape[0])
-            w_u = w_u * u_mask
+            self.w_u = chainer.Parameter(initializer=w_u, shape=w_u.shape)
+            self.w_l = chainer.Parameter(initializer=w_l, shape=w_l.shape)
+            self.s = chainer.Parameter(initializer=s, shape=s.shape)
             self.add_persistent("w_p", w_p)
             self.add_persistent("u_mask", u_mask)
             self.add_persistent("l_mask", l_mask)
             self.add_persistent("l_diag", l_diag)
-            self.w_u = chainer.Parameter(initializer=w_u, shape=w_u.shape)
-            self.w_l = chainer.Parameter(initializer=w_l, shape=w_l.shape)
-            self.s = chainer.Parameter(initializer=s, shape=s.shape)
+
 
     @property
     def W(self):

@@ -66,7 +66,6 @@ def main():
 
     num_bins_x = 2**args.num_bits_x
 
-    images = None
     if comm.rank == 0:
         files = Path(args.dataset_path).glob("*.png")
         images = []
@@ -78,7 +77,7 @@ def main():
             image = image.transpose((2, 0, 1))
             images.append(image)
         images = np.asanyarray(images)
-
+        image_size = images.shape[2:]
         x_mean = np.mean(images)
         x_var = np.var(images)
 
@@ -88,42 +87,42 @@ def main():
                 ["mean", x_mean],
                 ["var", x_var],
             ]))
+    else:
+        files = Path(args.dataset_path).glob("*.png")
+        for filepath in files:
+            image = np.array(Image.open(filepath)).astype("float32")
+            image_size = image.shape[:2]
+            break
+        images = None
 
     dataset = chainermn.scatter_dataset(images, comm, shuffle=True)
-    iterator = chainer.iterators.SerialIterator(dataset, args.batch_size)
 
     hyperparams = Hyperparameters(args.snapshot_path)
     hyperparams.levels = args.levels
     hyperparams.depth_per_level = args.depth_per_level
     hyperparams.nn_hidden_channels = args.nn_hidden_channels
-    hyperparams.image_size = image.shape[1:]
+    hyperparams.image_size = image_size
     hyperparams.num_bits_x = args.num_bits_x
     hyperparams.lu_decomposition = args.lu_decomposition
     hyperparams.serialize(args.snapshot_path)
 
-    print(
-        tabulate([
-            ["levels", hyperparams.levels],
-            ["depth_per_level", hyperparams.depth_per_level],
-            ["nn_hidden_channels", hyperparams.nn_hidden_channels],
-            ["image_size", hyperparams.image_size],
-            ["lu_decomposition", hyperparams.lu_decomposition],
-            ["num_bits_x", hyperparams.num_bits_x],
-        ]))
+    if comm.rank == 0:
+        print(
+            tabulate([
+                ["levels", hyperparams.levels],
+                ["depth_per_level", hyperparams.depth_per_level],
+                ["nn_hidden_channels", hyperparams.nn_hidden_channels],
+                ["image_size", hyperparams.image_size],
+                ["lu_decomposition", hyperparams.lu_decomposition],
+                ["num_bits_x", hyperparams.num_bits_x],
+            ]))
 
     encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
     encoder.to_gpu()
 
     optimizer = chainermn.create_multi_node_optimizer(
-        chainer.optimizers.Adam(alpha=1.0 * 1e-4), comm)
+        chainer.optimizers.Adam(alpha=1e-4), comm)
     optimizer.setup(encoder.parameters)
-
-    # Data dependent initialization
-    if encoder.need_initialize:
-        for data in iterator:
-            x = to_gpu(np.asanyarray(data))
-            encoder.initialize_actnorm_weights(x)
-            break
 
     current_training_step = 0
     num_pixels = hyperparams.image_size[0] * hyperparams.image_size[1]
@@ -131,10 +130,22 @@ def main():
     # Training loop
     for iteration in range(args.training_steps):
         sum_loss = 0
+        total_batch = 0
         start_time = time.time()
+        iterator = chainer.iterators.SerialIterator(
+            dataset, args.batch_size, repeat=False)
+
+        # Data dependent initialization
+        if encoder.need_initialize:
+            for data in iterator:
+                x = to_gpu(np.asanyarray(data))
+                encoder.initialize_actnorm_weights(x)
+                break
 
         for batch_index, data in enumerate(iterator):
             x = to_gpu(np.asanyarray(data))
+            batch_size = x.shape[0]
+
             x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
             factorized_z, logdet = encoder(x, reduce_memory=args.reduce_memory)
             logdet -= math.log(num_bins_x) * num_pixels
@@ -142,21 +153,23 @@ def main():
             for zi in factorized_z:
                 negative_log_likelihood += glow.nn.chainer.functions.standard_normal_nll(
                     zi)
-            denom = math.log(2.0) * args.batch_size * num_pixels
+            denom = math.log(2.0) * batch_size * num_pixels
             loss = (negative_log_likelihood - logdet) / denom
             encoder.cleargrads()
             loss.backward()
             optimizer.update()
 
             current_training_step += 1
+            total_batch += 1
 
             sum_loss += float(loss.data)
-            printr(
-                "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - log_det: {:.8f}".
-                format(iteration + 1, batch_index + 1, len(dataset),
-                       float(loss.data),
-                       float(negative_log_likelihood.data) / denom,
-                       float(logdet.data) / denom))
+            if comm.rank == 0:
+                printr(
+                    "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - log_det: {:.8f}".
+                    format(iteration + 1, batch_index + 1,
+                           len(dataset) // batch_size, float(loss.data),
+                           float(negative_log_likelihood.data) / denom,
+                           float(logdet.data) / denom))
 
             if batch_index % 100 == 0:
                 encoder.serialize(args.snapshot_path)
@@ -178,13 +191,14 @@ def main():
                 z = merge_factorized_z(factorized_z)
                 z_mean = float(xp.mean(z))
                 z_var = float(xp.var(z))
-
-        elapsed_time = time.time() - start_time
-        print(
-            "\033[2KIteration {} - loss: {:.5f} - z: mean={:.5f} var={:.5f} - rev_x: mean={:.5f} var={:.5f} - elapsed_time: {:.3f} min".
-            format(iteration + 1, sum_loss / len(iterator), z_mean, z_var,
-                   rev_x_mean, rev_x_var, elapsed_time / 60))
-        encoder.serialize(args.snapshot_path)
+        
+        if comm.rank == 0:
+            elapsed_time = time.time() - start_time
+            print(
+                "\033[2KIteration {} - loss: {:.5f} - z: mean={:.5f} var={:.5f} - rev_x: mean={:.5f} var={:.5f} - elapsed_time: {:.3f} min".
+                format(iteration + 1, sum_loss / total_batch, z_mean, z_var,
+                    rev_x_mean, rev_x_var, elapsed_time / 60))
+            encoder.serialize(args.snapshot_path)
 
 
 if __name__ == "__main__":

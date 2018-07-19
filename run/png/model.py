@@ -181,9 +181,10 @@ class InferenceModel():
 
     def serialize_parameter(self, path, filename, params):
         tmp_filename = str(uuid.uuid4())
-        save_hdf5(os.path.join(path, tmp_filename), params)
-        os.rename(
-            os.path.join(path, tmp_filename), os.path.join(path, filename))
+        tmp_filepath = os.path.join(path, tmp_filename)
+        save_hdf5(tmp_filepath, params)
+        save_hdf5(tmp_filepath, params)
+        os.rename(tmp_filepath, os.path.join(path, filename))
 
     def __getitem__(self, level):
         return self.map_flows_level[level]

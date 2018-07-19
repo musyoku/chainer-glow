@@ -55,6 +55,12 @@ def main():
     encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
     decoder = encoder.reverse()
 
+
+    actnorm, conv_1x1, coupling_layer = encoder[0][0]
+    print(conv_1x1.params.s)
+    print(conv_1x1.params.w_p)
+    exit()
+
     if using_gpu:
         encoder.to_gpu()
         decoder.to_gpu()

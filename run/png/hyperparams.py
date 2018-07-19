@@ -1,5 +1,5 @@
 import json
-from pathlib import Path
+import os
 
 
 class Hyperparameters():
@@ -13,9 +13,9 @@ class Hyperparameters():
         self.lu_decomposition = False
 
         if path is not None:
-            json_path = Path(path) / self.params_filename
-            if Path(json_path).exists():
-                with open(json_path, "r") as f:
+            json_path = os.path.join(path, self.params_filename)
+            if os.path.exists(json_path):
+                with open(str(json_path), "r") as f:
                     obj = json.load(f)
                     for (key, value) in obj.items():
                         if isinstance(value, list):
@@ -27,7 +27,7 @@ class Hyperparameters():
         return "model.json"
 
     def serialize(self, path):
-        with open(Path(path) / self.params_filename, "w") as f:
+        with open(os.path.join(path, self.params_filename), "w") as f:
             json.dump(
                 {
                     "depth_per_level": self.depth_per_level,
