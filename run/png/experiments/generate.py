@@ -19,13 +19,17 @@ from model import InferenceModel, GenerativeModel, to_cpu
 from hyperparams import Hyperparameters
 
 
-def make_uint8(array):
+def make_uint8(array, bins):
     if array.ndim == 4:
         array = array[0]
     if (array.shape[2] == 3):
-        return np.uint8(np.clip((to_cpu(array) + 0.5) * 255, 0, 255))
+        return np.uint8(
+            np.clip(
+                np.floor((to_cpu(array) + 0.5) * bins) * (255 / bins), 0, 255))
     return np.uint8(
-        np.clip((to_cpu(array.transpose(1, 2, 0)) + 0.5) * 255, 0, 255))
+        np.clip(
+            np.floor((to_cpu(array.transpose(1, 2, 0)) + 0.5) * bins) *
+            (255 / bins), 0, 255))
 
 
 def main():
@@ -43,7 +47,10 @@ def main():
             ["nn_hidden_channels", hyperparams.nn_hidden_channels],
             ["image_size", hyperparams.image_size],
             ["lu_decomposition", hyperparams.lu_decomposition],
+            ["num_bits_x", hyperparams.num_bits_x],
         ]))
+
+    num_bins_x = 2.0**hyperparams.num_bits_x
 
     encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
     decoder = encoder.reverse()
@@ -61,7 +68,7 @@ def main():
 
         with chainer.no_backprop_mode():
             x = decoder(z)
-            x_img = make_uint8(x.data[0])
+            x_img = make_uint8(x.data[0], num_bins_x)
             plt.imshow(x_img, interpolation="none")
             plt.pause(.01)
 
