@@ -10,6 +10,7 @@ from PIL import Image
 from pathlib import Path
 
 import chainer
+import chainermn
 import chainer.functions as cf
 import cupy
 import numpy as np
@@ -57,36 +58,39 @@ def main():
     except:
         pass
 
-    xp = np
-    using_gpu = args.gpu_device >= 0
-    if using_gpu:
-        cuda.get_device(args.gpu_device).use()
-        xp = cupy
+    comm = chainermn.create_communicator()
+    device = comm.intra_rank
+    print("device", device, "/", comm.size)
+    cuda.get_device(device).use()
+    xp = cupy
 
     num_bins_x = 2**args.num_bits_x
 
-    files = Path(args.dataset_path).glob("*.png")
-    images = []
-    for filepath in files:
-        image = np.array(Image.open(filepath)).astype("float32")
-        if args.num_bits_x < 8:
-            image = np.floor(image / (2**(8 - args.num_bits_x)))
-        image = image / num_bins_x - 0.5
-        image = image.transpose((2, 0, 1))
-        images.append(image)
-    images = np.asanyarray(images)
+    images = None
+    if comm.rank == 0:
+        files = Path(args.dataset_path).glob("*.png")
+        images = []
+        for filepath in files:
+            image = np.array(Image.open(filepath)).astype("float32")
+            if args.num_bits_x < 8:
+                image = np.floor(image / (2**(8 - args.num_bits_x)))
+            image = image / num_bins_x - 0.5
+            image = image.transpose((2, 0, 1))
+            images.append(image)
+        images = np.asanyarray(images)
 
-    x_mean = np.mean(images)
-    x_var = np.var(images)
+        x_mean = np.mean(images)
+        x_var = np.var(images)
 
-    dataset = glow.dataset.png.Dataset(images)
-    iterator = glow.dataset.png.Iterator(dataset, batch_size=args.batch_size)
+        print(
+            tabulate([
+                ["#", len(images)],
+                ["mean", x_mean],
+                ["var", x_var],
+            ]))
 
-    print(tabulate([
-        ["#", len(dataset)],
-        ["mean", x_mean],
-        ["var", x_var],
-    ]))
+    dataset = chainermn.scatter_dataset(images, comm, shuffle=True)
+    iterator = chainer.iterators.SerialIterator(dataset, args.batch_size)
 
     hyperparams = Hyperparameters(args.snapshot_path)
     hyperparams.levels = args.levels
@@ -108,15 +112,16 @@ def main():
         ]))
 
     encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
-    if using_gpu:
-        encoder.to_gpu()
+    encoder.to_gpu()
 
-    optimizer = Optimizer(encoder.parameters)
+    optimizer = chainermn.create_multi_node_optimizer(
+        chainer.optimizers.Adam(alpha=1.0 * 1e-4), comm)
+    optimizer.setup(encoder.parameters)
 
     # Data dependent initialization
     if encoder.need_initialize:
-        for batch_index, data_indices in enumerate(iterator):
-            x = to_gpu(dataset[data_indices])
+        for data in iterator:
+            x = to_gpu(np.asanyarray(data))
             encoder.initialize_actnorm_weights(x)
             break
 
@@ -128,8 +133,8 @@ def main():
         sum_loss = 0
         start_time = time.time()
 
-        for batch_index, data_indices in enumerate(iterator):
-            x = to_gpu(dataset[data_indices])
+        for batch_index, data in enumerate(iterator):
+            x = to_gpu(np.asanyarray(data))
             x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
             factorized_z, logdet = encoder(x, reduce_memory=args.reduce_memory)
             logdet -= math.log(num_bins_x) * num_pixels
@@ -141,14 +146,14 @@ def main():
             loss = (negative_log_likelihood - logdet) / denom
             encoder.cleargrads()
             loss.backward()
-            optimizer.update(current_training_step)
+            optimizer.update()
 
             current_training_step += 1
 
             sum_loss += float(loss.data)
             printr(
                 "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - log_det: {:.8f}".
-                format(iteration + 1, batch_index + 1, len(iterator),
+                format(iteration + 1, batch_index + 1, len(dataset),
                        float(loss.data),
                        float(negative_log_likelihood.data) / denom,
                        float(logdet.data) / denom))
@@ -164,8 +169,7 @@ def main():
         if True:
             with chainer.no_backprop_mode():
                 decoder = encoder.reverse()
-                if using_gpu:
-                    decoder.to_gpu()
+                decoder.to_gpu()
                 factorized_z, logdet = encoder(x)
                 rev_x = decoder(factorized_z)
                 rev_x_mean = float(xp.mean(rev_x.data))
@@ -189,7 +193,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--snapshot-path", "-snapshot", type=str, default="snapshot")
     parser.add_argument("--batch-size", "-b", type=int, default=32)
-    parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
     parser.add_argument("--reduce-memory", action="store_true")
     parser.add_argument("--training-steps", "-i", type=int, default=100000)
     parser.add_argument("--depth-per-level", "-depth", type=int, default=32)
