@@ -14,8 +14,8 @@ class Hyperparameters():
 
         if path is not None:
             json_path = os.path.join(path, self.params_filename)
-            if os.path.exists(json_path):
-                with open(str(json_path), "r") as f:
+            if os.path.exists(json_path) and os.path.isfile(json_path):
+                with open(json_path, "r") as f:
                     obj = json.load(f)
                     for (key, value) in obj.items():
                         if isinstance(value, list):
