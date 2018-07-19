@@ -129,6 +129,7 @@ def check_layer():
     error = cf.mean(abs(x - rev_x))
     print(error)
 
+
 def check_model():
     depth_per_level = 16
     levels = 3
@@ -177,8 +178,21 @@ def check_model():
     print(error)
 
 
+def check_squeeze():
+    factor = 2
+    shape = (1, 3, 8, 8)
+    x = xp.arange(0, np.prod(shape)).reshape(shape)
+    print(x)
+    y = glow.nn.chainer.functions.squeeze(x, factor=factor, module=xp)
+    print(y)
+    _x = glow.nn.chainer.functions.unsqueeze(y, factor=factor, module=xp)
+    print(xp.mean(xp.abs(x - _x)))
+    exit()
+
+
 def main():
     with chainer.no_backprop_mode():
+        check_squeeze()
         check_layer()
         check_model()
 

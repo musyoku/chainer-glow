@@ -11,7 +11,7 @@ def squeeze(x, factor=2, module=cf):
     assert width % factor == 0
     out = module.reshape(x, (batchsize, channels, height // factor, factor,
                              width // factor, factor))
-    out = module.transpose(out, (0, 1, 5, 3, 2, 4))
+    out = module.transpose(out, (0, 1, 3, 5, 2, 4))
     out = module.reshape(out, (batchsize, int(channels * factor**2),
                                height // factor, width // factor))
     return out
@@ -26,7 +26,7 @@ def unsqueeze(x, factor=2, module=cf):
     assert width % factor == 0
     out = module.reshape(
         x, (batchsize, channels // (factor**2), factor, factor, height, width))
-    out = module.transpose(out, (0, 1, 4, 3, 5, 2))
+    out = module.transpose(out, (0, 1, 4, 2, 5, 3))
     out = module.reshape(
         out,
         (batchsize, channels // (factor**2), height * factor, width * factor))
