@@ -44,12 +44,12 @@ def main():
             ["image_size", hyperparams.image_size],
         ]))
 
-    inference_model = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
-    generative_model = GenerativeModel(inference_model)
+    encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
+    decoder = encoder.reverse()
 
     if using_gpu:
-        inference_model.to_gpu()
-        generative_model.to_gpu()
+        encoder.to_gpu()
+        decoder.to_gpu()
 
     while True:
         z = xp.random.normal(
@@ -59,7 +59,7 @@ def main():
             ) + hyperparams.image_size).astype("float32")
 
         with chainer.no_backprop_mode():
-            x = generative_model(z)
+            x = decoder(z)
             x_img = make_uint8(x.data[0])
             plt.imshow(x_img, interpolation="none")
             plt.pause(.01)

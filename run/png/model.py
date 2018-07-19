@@ -250,8 +250,8 @@ def reverse_coupling_layer(
 
 
 class GenerativeModel():
-    def __init__(self, model: InferenceModel):
-        self.hyperparams = model.hyperparams
+    def __init__(self, source: InferenceModel):
+        self.hyperparams = source.hyperparams
         self.parameters = chainer.Chain()
 
         with self.parameters.init_scope():
@@ -261,7 +261,7 @@ class GenerativeModel():
                 map_flow_depth = []
 
                 for depth in range(self.hyperparams.depth_per_level):
-                    actnorm, conv_1x1, coupling_layer = model[level][depth]
+                    actnorm, conv_1x1, coupling_layer = source[level][depth]
 
                     rev_actnorm = reverse_actnorm(actnorm)
                     rev_conv_1x1 = reverse_conv_1x1(conv_1x1)
