@@ -111,7 +111,7 @@ def main():
     if using_gpu:
         encoder.to_gpu()
 
-    optimizer = Optimizer(encoder.parameters)
+    optimizer = Optimizer(encoder.params)
 
     # Data dependent initialization
     if encoder.need_initialize:
@@ -176,7 +176,7 @@ def main():
                     if using_gpu:
                         decoder.to_gpu()
                     factorized_z, logdet = encoder(x)
-                    rev_x = decoder(factorized_z)
+                    rev_x, _ = decoder(factorized_z)
                     rev_x_mean = float(xp.mean(rev_x.data))
                     rev_x_var = float(xp.var(rev_x.data))
 

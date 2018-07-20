@@ -67,7 +67,7 @@ def main():
             ) + hyperparams.image_size).astype("float32")
 
         with chainer.no_backprop_mode():
-            x = decoder(z)
+            x, _ = decoder(z)
             x_img = make_uint8(x.data[0], num_bins_x)
             plt.imshow(x_img, interpolation="none")
             plt.pause(.01)

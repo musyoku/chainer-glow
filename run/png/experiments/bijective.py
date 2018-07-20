@@ -87,12 +87,12 @@ def main():
                 x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
                 factorized_z, _ = encoder(x)
 
-                for zi in factorized_z:
-                    noise = xp.random.normal(
-                        0, 0.2, size=zi.shape).astype("float32")
-                    zi.data += noise
+                # for zi in factorized_z:
+                #     noise = xp.random.normal(
+                #         0, 0.2, size=zi.shape).astype("float32")
+                #     zi.data += noise
 
-                rev_x = decoder(factorized_z)
+                rev_x, _ = decoder(factorized_z)
 
                 x_img = make_uint8(x[0], num_bins_x)
                 rev_x_img = make_uint8(rev_x.data[0], num_bins_x)

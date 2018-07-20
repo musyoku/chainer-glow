@@ -28,10 +28,10 @@ def check_layer():
         params = glow.nn.chainer.actnorm.Parameters(channels=channels_x)
         params.to_gpu()
 
-        params.scale.data = xp.random.normal(
-            1.0, 1, size=params.scale.data.shape).astype("float32")
-        params.bias.data = xp.random.normal(
-            0.0, 1, size=params.bias.data.shape).astype("float32")
+        params.scale.data = xp.random.uniform(
+            -1.0, 1.0, size=params.scale.data.shape).astype("float32")
+        params.bias.data = xp.random.uniform(
+            -1.0, 1.0, size=params.bias.data.shape).astype("float32")
         actnorm = glow.nn.chainer.actnorm.Actnorm(params)
         rev_actnorm = reverse_actnorm(actnorm)
         rev_actnorm.params.to_gpu()
@@ -46,7 +46,7 @@ def check_layer():
         rev_actnorm = layers[size - k - 1][1]
         rev_x, _ = rev_actnorm(rev_x)
     error = cf.mean(abs(x - rev_x))
-    print(error)
+    print("actnorm:", error)
 
     # invertible 1x1 convolution
     layers = []
@@ -57,9 +57,9 @@ def check_layer():
         params.to_gpu()
 
         shape = params.conv.W.data.shape[:2]
-        noise = xp.random.normal(
-            0.0, 1, size=shape).astype("float32").reshape(shape + (1, 1))
-        params.conv.W.data += noise
+        # noise = xp.random.uniform(
+        #     -1.0, 1.0, size=shape).astype("float32").reshape(shape + (1, 1))
+        # params.conv.W.data += noise
 
         conv_1x1 = glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv(
             params)
@@ -77,7 +77,7 @@ def check_layer():
         rev_conv_1x1 = layers[size - k - 1][1]
         rev_x, _ = rev_conv_1x1(rev_x)
     error = cf.mean(abs(x - rev_x))
-    print(error)
+    print("inv_1x1:", error)
 
     # invertible 1x1 convolution (LU)
     layers = []
@@ -102,17 +102,17 @@ def check_layer():
         rev_conv_1x1 = layers[size - k - 1][1]
         rev_x, _ = rev_conv_1x1(rev_x)
     error = cf.mean(abs(x - rev_x))
-    print(error)
+    print("lu_1x1:", error)
 
     # affine coupling layer
     params = glow.nn.chainer.affine_coupling.Parameters(
         channels_x=channels_x, channels_h=128)
     params.to_gpu()
     params.conv_1(x[:, 0::2])
-    params.conv_1.W.data = xp.random.normal(
-        0.0, 1, size=params.conv_1.W.data.shape).astype("float32")
-    params.conv_2.W.data = xp.random.normal(
-        0.0, 1, size=params.conv_2.W.data.shape).astype("float32")
+    params.conv_1.W.data = xp.random.uniform(
+        -1.0, 1.0, size=params.conv_1.W.data.shape).astype("float32")
+    params.conv_2.W.data = xp.random.uniform(
+        -1.0, 1.0, size=params.conv_2.W.data.shape).astype("float32")
     nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
         params)
     coupling_layer = glow.nn.chainer.affine_coupling.AffineCoupling(
@@ -127,12 +127,12 @@ def check_layer():
     for _ in range(4 * 32):
         rev_x, _ = rev_coupling_layer(rev_x)
     error = cf.mean(abs(x - rev_x))
-    print(error)
+    print("coupling:", error)
 
 
 def check_model():
-    depth_per_level = 16
-    levels = 3
+    depth_per_level = 32
+    levels = 4
     batchsize = 3
 
     x = xp.random.normal(0, 1, size=(batchsize, 3, 64, 64)).astype("float32")
@@ -144,28 +144,27 @@ def check_model():
 
     encoder = InferenceModel(hyperparams)
     encoder.to_gpu()
-    _ = encoder(x)
 
     for level in range(levels):
         for depth in range(depth_per_level):
             actnorm, conv_1x1, coupling_layer = encoder[level][depth]
 
             params = actnorm.params
-            params.scale.data = xp.random.normal(
-                1.0, 0.1, size=params.scale.data.shape).astype("float32")
-            params.bias.data = xp.random.normal(
-                0.0, 0.1, size=params.bias.data.shape).astype("float32")
+            params.scale.data = xp.random.uniform(
+                -1.0, 1.0, size=params.scale.data.shape).astype("float32")
+            params.bias.data = xp.random.uniform(
+                -1.0, 1.0, size=params.bias.data.shape).astype("float32")
 
             params = conv_1x1.params
             shape = params.conv.W.data.shape
-            noise = xp.random.normal(0.0, 0.01, size=shape).astype("float32")
-            params.conv.W.data += noise
+            # noise = xp.random.uniform(-1.0, 1.0, size=shape).astype("float32")
+            # params.conv.W.data += noise
 
             params = coupling_layer.nn.params
-            params.conv_1.W.data = xp.random.normal(
-                0.0, 0.1, size=params.conv_1.W.data.shape).astype("float32")
-            params.conv_2.W.data = xp.random.normal(
-                0.0, 0.1, size=params.conv_2.W.data.shape).astype("float32")
+            params.conv_1.W.data = xp.random.uniform(
+                -1.0, 1.0, size=params.conv_1.W.data.shape).astype("float32")
+            params.conv_2.W.data = xp.random.uniform(
+                -1.0, 1.0, size=params.conv_2.W.data.shape).astype("float32")
             params.conv_scale.W.data = xp.zeros(
                 params.conv_scale.W.data.shape, dtype="float32")
             params.conv_bias.W.data = xp.zeros(

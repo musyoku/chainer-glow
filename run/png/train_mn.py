@@ -124,7 +124,7 @@ def main():
 
     optimizer = chainermn.create_multi_node_optimizer(
         chainer.optimizers.Adam(alpha=1e-4), comm)
-    optimizer.setup(encoder.parameters)
+    optimizer.setup(encoder.params)
 
     current_training_step = 0
     num_pixels = hyperparams.image_size[0] * hyperparams.image_size[1]

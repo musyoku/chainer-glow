@@ -45,6 +45,26 @@ class Diag(chainer.function.Function):
 def diag(vector):
     return Diag()(vector)
 
+class Mask(chainer.function.Function):
+    def check_type_forward(self, in_types):
+        type_check.expect(in_types.size() == 1, )
+
+    def forward(self, inputs):
+        vector = inputs[0]
+        xp = cuda.get_array_module(vector)
+        mat = xp.diag(vector)
+        return mat,
+
+    def backward(self, inputs, grad_outputs):
+        vector = inputs[0]
+        grad = grad_outputs[0]
+        xp = cuda.get_array_module(vector)
+        return xp.diag(grad),
+
+
+def mask(vector):
+    return Mask()(vector)
+
 
 class LUParameters(chainer.Chain):
     def __init__(self, channels):
@@ -58,27 +78,24 @@ class LUParameters(chainer.Chain):
         # w_u: an upper triangular matrix with zeros on the diagonal,
         w_p, w_l, w_u = scipy.linalg.lu(rotation_mat)
         s = np.diag(w_u)
-        u_mask = np.triu(np.ones_like(w_u), k=1)
-        l_mask = u_mask.T
-        l_diag = np.eye(w_l.shape[0])
-        w_u = w_u * u_mask
+        self.u_mask = np.triu(np.ones_like(w_u), k=1)
+        self.l_mask = np.tril(np.ones_like(w_u), k=-1)
+        self.l_diag = np.eye(w_l.shape[0])
+        w_u = w_u * self.u_mask
 
-        w_u = np.ascontiguousarray(w_u)
-        w_l = np.ascontiguousarray(w_l)
-        s = np.ascontiguousarray(s)
-        w_p = np.ascontiguousarray(w_p)
-        u_mask = np.ascontiguousarray(u_mask)
-        l_mask = np.ascontiguousarray(l_mask)
-        l_diag = np.ascontiguousarray(l_diag)
+        # w_u = np.ascontiguousarray(w_u)
+        # w_l = np.ascontiguousarray(w_l)
+        # s = np.ascontiguousarray(s)
+        # w_p = np.ascontiguousarray(w_p)
+        # self.u_mask = np.ascontiguousarray(u_mask)
+        # self.l_mask = np.ascontiguousarray(l_mask)
+        # l_diag = np.ascontiguousarray(l_diag)
 
         with self.init_scope():
             self.w_u = chainer.Parameter(initializer=w_u, shape=w_u.shape)
             self.w_l = chainer.Parameter(initializer=w_l, shape=w_l.shape)
             self.s = chainer.Parameter(initializer=s, shape=s.shape)
             self.add_persistent("w_p", w_p)
-            self.add_persistent("u_mask", u_mask)
-            self.add_persistent("l_mask", l_mask)
-            self.add_persistent("l_diag", l_diag)
 
 
     @property

@@ -26,13 +26,16 @@ class AffineCoupling(base.AffineCoupling):
         split = x.shape[1] // 2
         xa = x[:, :split]
         xb = x[:, split:]
+
         log_scale, bias = self.nn(xb)
-        # scale = cf.exp(log_scale)
-        scale = cf.sigmoid(log_scale + 2)
+        scale = cf.sigmoid(log_scale + 2) + 1e-12
+
         ya = scale * (xa + bias)
         yb = xb
         y = cf.concat((ya, yb), axis=1)
+
         log_det = self.compute_log_determinant(scale)
+
         return y, log_det
 
     def compute_log_determinant(self, scale):
@@ -47,13 +50,16 @@ class ReverseAffineCoupling(base.ReverseAffineCoupling):
         split = y.shape[1] // 2
         ya = y[:, :split]
         yb = y[:, split:]
+
         log_scale, bias = self.nn(yb)
-        # scale = cf.exp(log_scale)
-        scale = cf.sigmoid(log_scale + 2)
-        xa = ya / (scale + 1e-12) - bias
+        scale = cf.sigmoid(log_scale + 2) + 1e-12
+
+        xa = ya / scale - bias
         xb = yb
         x = cf.concat((xa, xb), axis=1)
+
         log_det = self.compute_log_determinant(scale)
+        
         return x, log_det
 
     def compute_log_determinant(self, scale):

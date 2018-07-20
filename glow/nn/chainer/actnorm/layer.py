@@ -12,14 +12,18 @@ class Actnorm(base.Actnorm):
         self.scale = self.params.scale
 
     def __call__(self, x):
+        scale = cf.tanh(self.scale + 2) + 1e-12
+
         y = x + cf.broadcast_to(self.bias, x.shape)
-        y = y * cf.broadcast_to(self.scale, x.shape)
-        log_det = self.compute_log_determinant(x)
+        y = y * cf.broadcast_to(scale, x.shape)
+
+        log_det = self.compute_log_determinant(x, scale)
+
         return y, log_det
 
-    def compute_log_determinant(self, x):
+    def compute_log_determinant(self, x, scale):
         h, w = x.shape[2:]
-        return h * w * cf.sum(cf.log(abs(self.scale)))
+        return h * w * cf.sum(cf.log(abs(scale)))
 
 
 class ReverseActnorm(base.ReverseActnorm):
@@ -29,11 +33,15 @@ class ReverseActnorm(base.ReverseActnorm):
         self.scale = self.params.scale
 
     def __call__(self, y):
-        x = y / cf.broadcast_to(self.scale + 1e-12, y.shape)
+        scale = cf.tanh(self.scale + 2) + 1e-12
+
+        x = y / cf.broadcast_to(scale, y.shape)
         x = x - cf.broadcast_to(self.bias, y.shape)
-        log_det = self.compute_log_determinant(x)
+
+        log_det = self.compute_log_determinant(x, scale)
+
         return x, log_det
 
-    def compute_log_determinant(self, x):
+    def compute_log_determinant(self, x, scale):
         h, w = x.shape[2:]
-        return -h * w * cf.sum(cf.log(abs(self.scale)))
+        return -h * w * cf.sum(cf.log(abs(scale)))

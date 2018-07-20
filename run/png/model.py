@@ -78,9 +78,6 @@ class Flow(object):
 
         return out, sum_logdet
 
-    def layers(self):
-        return self.actnorm, self.conv_1x1, self.coupling_layer
-
     def __iter__(self):
         yield self.actnorm
         yield self.conv_1x1
@@ -111,7 +108,7 @@ class Block(object):
         out = x
 
         for flow in self.flows:
-            out, logdet = flow(x, reduce_memory=reduce_memory)
+            out, logdet = flow(out, reduce_memory=reduce_memory)
             sum_logdet += logdet
 
         return out, sum_logdet
@@ -245,7 +242,7 @@ class InferenceModel():
             for flow in block.flows:
                 mean = xp.mean(out.data, axis=(0, 2, 3), keepdims=True)
                 std = xp.std(out.data, axis=(0, 2, 3), keepdims=True)
-
+                
                 params = flow.actnorm.params
                 params.scale.data = 1.0 / std
                 params.bias.data = -mean
@@ -354,7 +351,7 @@ class GenerativeModel():
             factorized_z = z
         else:
             factorized_z = self.factor_z(z)
-        assert len(z) == len(self.blocks)
+        assert len(factorized_z) == len(self.blocks)
 
         i = -1
         out = factorized_z[i]
