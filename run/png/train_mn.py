@@ -82,7 +82,6 @@ def main():
 
     if comm.rank == 0:
         assert args.dataset_format in ["png", "npy"]
-
         files = Path(args.dataset_path).glob("*.{}".format(
             args.dataset_format))
         if args.dataset_format == "png":
@@ -91,6 +90,7 @@ def main():
                 image = np.array(Image.open(filepath)).astype("float32")
                 image = preprocess(image, args.num_bits_x)
                 images.append(image)
+            assert len(images) > 0
             images = np.asanyarray(images)
         elif args.dataset_format == "npy":
             images = []
@@ -98,11 +98,11 @@ def main():
                 array = np.load(filepath).astype("float32")
                 array = preprocess(array, args.num_bits_x)
                 images.append(array)
+            assert len(images) > 0
             num_files = len(images)
             images = np.asanyarray(images)
             images = images.reshape((num_files * images.shape[1], ) +
                                     images.shape[2:])
-            print(images.shape)
         else:
             raise NotImplementedError
 
