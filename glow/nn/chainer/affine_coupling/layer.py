@@ -50,7 +50,7 @@ class ReverseAffineCoupling(base.ReverseAffineCoupling):
         log_scale, bias = self.nn(yb)
         # scale = cf.exp(log_scale)
         scale = cf.sigmoid(log_scale + 2)
-        xa = ya / scale - bias
+        xa = ya / (scale + 1e-12) - bias
         xb = yb
         x = cf.concat((xa, xb), axis=1)
         return x

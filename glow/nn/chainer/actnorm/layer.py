@@ -29,6 +29,6 @@ class ReverseActnorm(base.ReverseActnorm):
         self.scale = self.params.scale
 
     def __call__(self, y):
-        x = y / cf.broadcast_to(self.scale, y.shape)
+        x = y / cf.broadcast_to(self.scale + 1e-12, y.shape)
         x = x - cf.broadcast_to(self.bias, y.shape)
         return x
