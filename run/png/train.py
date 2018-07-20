@@ -51,6 +51,20 @@ def merge_factorized_z(factorized_z, factor=2):
     return z
 
 
+def preprocess(image, num_bits_x):
+    num_bins_x = 2**num_bits_x
+    if args.num_bits_x < 8:
+        image = np.floor(image / (2**(8 - num_bits_x)))
+    image = image / num_bins_x - 0.5
+    if image.ndim == 3:
+        image = image.transpose((2, 0, 1))
+    elif image.ndim == 4:
+        image = image.transpose((0, 3, 1, 2))
+    else:
+        raise NotImplementedError
+    return image
+
+
 def main():
     try:
         os.mkdir(args.snapshot_path)
@@ -65,16 +79,29 @@ def main():
 
     num_bins_x = 2**args.num_bits_x
 
-    files = Path(args.dataset_path).glob("*.png")
-    images = []
-    for filepath in files:
-        image = np.array(Image.open(filepath)).astype("float32")
-        if args.num_bits_x < 8:
-            image = np.floor(image / (2**(8 - args.num_bits_x)))
-        image = image / num_bins_x - 0.5
-        image = image.transpose((2, 0, 1))
-        images.append(image)
-    images = np.asanyarray(images)
+    assert args.dataset_format in ["png", "npy"]
+
+    files = Path(args.dataset_path).glob("*.{}".format(args.dataset_format))
+    if args.dataset_format == "png":
+        images = []
+        for filepath in files:
+            image = np.array(Image.open(filepath)).astype("float32")
+            image = preprocess(image, args.num_bits_x)
+            images.append(image)
+        images = np.asanyarray(images)
+    elif args.dataset_format == "npy":
+        images = []
+        for filepath in files:
+            array = np.load(filepath).astype("float32")
+            array = preprocess(array, args.num_bits_x)
+            images.append(array)
+        num_files = len(images)
+        images = np.asanyarray(images)
+        images = images.reshape((num_files * images.shape[1]) +
+                                images.shape[2:])
+        print(images.shape)
+    else:
+        raise NotImplementedError
 
     x_mean = np.mean(images)
     x_var = np.var(images)
@@ -92,7 +119,7 @@ def main():
     hyperparams.levels = args.levels
     hyperparams.depth_per_level = args.depth_per_level
     hyperparams.nn_hidden_channels = args.nn_hidden_channels
-    hyperparams.image_size = image.shape[1:]
+    hyperparams.image_size = images.shape[2:]
     hyperparams.num_bits_x = args.num_bits_x
     hyperparams.lu_decomposition = args.lu_decomposition
     hyperparams.serialize(args.snapshot_path)
@@ -195,6 +222,7 @@ def main():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset-path", "-dataset", type=str, required=True)
+    parser.add_argument("--dataset-format", "-ext", type=str, required=True)
     parser.add_argument(
         "--snapshot-path", "-snapshot", type=str, default="snapshot")
     parser.add_argument("--batch-size", "-b", type=int, default=32)
