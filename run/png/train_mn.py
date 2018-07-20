@@ -100,7 +100,7 @@ def main():
                 images.append(array)
             num_files = len(images)
             images = np.asanyarray(images)
-            images = images.reshape((num_files * images.shape[1]) +
+            images = images.reshape((num_files * images.shape[1], ) +
                                     images.shape[2:])
             print(images.shape)
         else:
