@@ -106,6 +106,8 @@ def main():
         else:
             raise NotImplementedError
 
+        assert args.image_size == images.shape[2]
+        
         x_mean = np.mean(images)
         x_var = np.var(images)
 
@@ -115,13 +117,6 @@ def main():
                 ["mean", x_mean],
                 ["var", x_var],
             ]))
-    else:
-        files = Path(args.dataset_path).glob("*.png")
-        for filepath in files:
-            image = np.array(Image.open(filepath)).astype("float32")
-            image_size = image.shape[:2]
-            break
-        images = None
 
     dataset = chainermn.scatter_dataset(images, comm, shuffle=True)
 
@@ -130,7 +125,7 @@ def main():
     hyperparams.levels = args.levels
     hyperparams.depth_per_level = args.depth_per_level
     hyperparams.nn_hidden_channels = args.nn_hidden_channels
-    hyperparams.image_size = image_size
+    hyperparams.image_size = (args.image_size, args.image_size)
     hyperparams.num_bits_x = args.num_bits_x
     hyperparams.lu_decomposition = args.lu_decomposition
     if comm.rank == 0:
@@ -245,5 +240,6 @@ if __name__ == "__main__":
     parser.add_argument("--nn-hidden-channels", "-nn", type=int, default=512)
     parser.add_argument("--num-bits-x", "-bits", type=int, default=8)
     parser.add_argument("--lu-decomposition", "-lu", action="store_true")
+    parser.add_argument("--image-size", type=int, required=True)
     args = parser.parse_args()
     main()
