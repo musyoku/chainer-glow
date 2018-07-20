@@ -78,10 +78,10 @@ class LUParameters(chainer.Chain):
         # w_u: an upper triangular matrix with zeros on the diagonal,
         w_p, w_l, w_u = scipy.linalg.lu(rotation_mat)
         s = np.diag(w_u)
-        self.u_mask = np.triu(np.ones_like(w_u), k=1)
-        self.l_mask = np.tril(np.ones_like(w_u), k=-1)
-        self.l_diag = np.eye(w_l.shape[0])
-        w_u = w_u * self.u_mask
+        u_mask = np.triu(np.ones_like(w_u), k=1)
+        l_mask = np.tril(np.ones_like(w_u), k=-1)
+        l_diag = np.eye(w_l.shape[0])
+        w_u = w_u * u_mask
 
         # w_u = np.ascontiguousarray(w_u)
         # w_l = np.ascontiguousarray(w_l)
@@ -96,6 +96,9 @@ class LUParameters(chainer.Chain):
             self.w_l = chainer.Parameter(initializer=w_l, shape=w_l.shape)
             self.s = chainer.Parameter(initializer=s, shape=s.shape)
             self.add_persistent("w_p", w_p)
+            self.add_persistent("u_mask", u_mask)
+            self.add_persistent("l_mask", l_mask)
+            self.add_persistent("l_diag", l_diag)
 
 
     @property

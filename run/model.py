@@ -148,7 +148,7 @@ class InferenceModel():
                         channels=channels_x)
                     actnorm = glow.nn.chainer.actnorm.Actnorm(params)
 
-                    if hyperparams.lu_decomposition:
+                    if level > 5 or hyperparams.lu_decomposition:
                         params = glow.nn.chainer.invertible_1x1_conv.LUParameters(
                             channels=channels_x)
                         conv_1x1 = glow.nn.chainer.invertible_1x1_conv.LUInvertible1x1Conv(
