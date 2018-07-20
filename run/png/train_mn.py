@@ -97,14 +97,16 @@ def main():
 
     dataset = chainermn.scatter_dataset(images, comm, shuffle=True)
 
-    hyperparams = Hyperparameters(args.snapshot_path)
+    hyperparams = Hyperparameters(args.snapshot_path
+                                  if comm.rank == 0 else None)
     hyperparams.levels = args.levels
     hyperparams.depth_per_level = args.depth_per_level
     hyperparams.nn_hidden_channels = args.nn_hidden_channels
     hyperparams.image_size = image_size
     hyperparams.num_bits_x = args.num_bits_x
     hyperparams.lu_decomposition = args.lu_decomposition
-    hyperparams.serialize(args.snapshot_path)
+    if comm.rank == 0:
+        hyperparams.serialize(args.snapshot_path)
 
     if comm.rank == 0:
         print(
@@ -191,13 +193,13 @@ def main():
                 z = merge_factorized_z(factorized_z)
                 z_mean = float(xp.mean(z))
                 z_var = float(xp.var(z))
-        
+
         if comm.rank == 0:
             elapsed_time = time.time() - start_time
             print(
                 "\033[2KIteration {} - loss: {:.5f} - z: mean={:.5f} var={:.5f} - rev_x: mean={:.5f} var={:.5f} - elapsed_time: {:.3f} min".
                 format(iteration + 1, sum_loss / total_batch, z_mean, z_var,
-                    rev_x_mean, rev_x_var, elapsed_time / 60))
+                       rev_x_mean, rev_x_var, elapsed_time / 60))
             encoder.serialize(args.snapshot_path)
 
 
