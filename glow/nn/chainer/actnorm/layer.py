@@ -31,4 +31,9 @@ class ReverseActnorm(base.ReverseActnorm):
     def __call__(self, y):
         x = y / cf.broadcast_to(self.scale + 1e-12, y.shape)
         x = x - cf.broadcast_to(self.bias, y.shape)
-        return x
+        log_det = self.compute_log_determinant(x)
+        return x, log_det
+
+    def compute_log_determinant(self, x):
+        h, w = x.shape[2:]
+        return -h * w * cf.sum(cf.log(abs(self.scale)))

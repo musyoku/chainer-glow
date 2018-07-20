@@ -124,63 +124,72 @@ def main():
     num_pixels = hyperparams.image_size[0] * hyperparams.image_size[1]
 
     # Training loop
-    for iteration in range(args.training_steps):
-        sum_loss = 0
-        start_time = time.time()
+    with chainer.using_config("debug", False):
 
-        for batch_index, data_indices in enumerate(iterator):
-            x = to_gpu(dataset[data_indices])
-            x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
-            factorized_z, logdet = encoder(x, reduce_memory=args.reduce_memory)
-            logdet -= math.log(num_bins_x) * num_pixels
-            negative_log_likelihood = 0
-            for zi in factorized_z:
-                negative_log_likelihood += glow.nn.chainer.functions.standard_normal_nll(
-                    zi)
-            denom = math.log(2.0) * args.batch_size * num_pixels
-            loss = (negative_log_likelihood - logdet) / denom
-            encoder.cleargrads()
-            loss.backward()
-            optimizer.update(current_training_step)
+        for iteration in range(args.training_steps):
+            sum_loss = 0
+            start_time = time.time()
 
-            current_training_step += 1
+            for batch_index, data_indices in enumerate(iterator):
+                x = to_gpu(dataset[data_indices])
+                x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
+                factorized_z, logdet = encoder(
+                    x, reduce_memory=args.reduce_memory)
+                logdet -= math.log(num_bins_x) * num_pixels
+                negative_log_likelihood = 0
+                for zi in factorized_z:
+                    negative_log_likelihood += glow.nn.chainer.functions.standard_normal_nll(
+                        zi)
+                denom = math.log(2.0) * args.batch_size * num_pixels
+                loss = (negative_log_likelihood - logdet) / denom
+                encoder.cleargrads()
+                loss.backward()
+                optimizer.update(current_training_step)
 
-            sum_loss += float(loss.data)
-            printr(
-                "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - log_det: {:.8f}".
-                format(iteration + 1, batch_index + 1, len(iterator),
-                       float(loss.data),
-                       float(negative_log_likelihood.data) / denom,
-                       float(logdet.data) / denom))
+                current_training_step += 1
 
-            if batch_index % 100 == 0:
-                encoder.serialize(args.snapshot_path)
+                loss_value = float(loss.data)
+                # check nan
+                if loss_value != loss_value:
+                    print("Encountered NaN")
+                    exit()
 
-        # Check model reversibility
-        rev_x_mean = None
-        rev_x_var = None
-        z_mean = None
-        z_var = None
-        if True:
-            with chainer.no_backprop_mode():
-                decoder = encoder.reverse()
-                if using_gpu:
-                    decoder.to_gpu()
-                factorized_z, logdet = encoder(x)
-                rev_x = decoder(factorized_z)
-                rev_x_mean = float(xp.mean(rev_x.data))
-                rev_x_var = float(xp.var(rev_x.data))
+                sum_loss += loss_value
+                printr(
+                    "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - log_det: {:.8f}".
+                    format(iteration + 1, batch_index + 1, len(iterator),
+                           float(loss.data),
+                           float(negative_log_likelihood.data) / denom,
+                           float(logdet.data) / denom))
 
-                z = merge_factorized_z(factorized_z)
-                z_mean = float(xp.mean(z))
-                z_var = float(xp.var(z))
+                if batch_index % 100 == 0:
+                    encoder.serialize(args.snapshot_path)
 
-        elapsed_time = time.time() - start_time
-        print(
-            "\033[2KIteration {} - loss: {:.5f} - z: mean={:.5f} var={:.5f} - rev_x: mean={:.5f} var={:.5f} - elapsed_time: {:.3f} min".
-            format(iteration + 1, sum_loss / len(iterator), z_mean, z_var,
-                   rev_x_mean, rev_x_var, elapsed_time / 60))
-        encoder.serialize(args.snapshot_path)
+            # Check model reversibility
+            rev_x_mean = None
+            rev_x_var = None
+            z_mean = None
+            z_var = None
+            if True:
+                with chainer.no_backprop_mode():
+                    decoder = encoder.reverse()
+                    if using_gpu:
+                        decoder.to_gpu()
+                    factorized_z, logdet = encoder(x)
+                    rev_x = decoder(factorized_z)
+                    rev_x_mean = float(xp.mean(rev_x.data))
+                    rev_x_var = float(xp.var(rev_x.data))
+
+                    z = merge_factorized_z(factorized_z)
+                    z_mean = float(xp.mean(z))
+                    z_var = float(xp.var(z))
+
+            elapsed_time = time.time() - start_time
+            print(
+                "\033[2KIteration {} - loss: {:.5f} - z: mean={:.5f} var={:.5f} - rev_x: mean={:.5f} var={:.5f} - elapsed_time: {:.3f} min".
+                format(iteration + 1, sum_loss / len(iterator), z_mean, z_var,
+                       rev_x_mean, rev_x_var, elapsed_time / 60))
+            encoder.serialize(args.snapshot_path)
 
 
 if __name__ == "__main__":

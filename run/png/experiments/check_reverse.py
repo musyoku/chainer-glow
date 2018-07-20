@@ -44,7 +44,7 @@ def check_layer():
     rev_x = y
     for k in range(4 * 32):
         rev_actnorm = layers[size - k - 1][1]
-        rev_x = rev_actnorm(rev_x)
+        rev_x, _ = rev_actnorm(rev_x)
     error = cf.mean(abs(x - rev_x))
     print(error)
 
@@ -75,7 +75,7 @@ def check_layer():
     rev_x = y
     for k in range(size):
         rev_conv_1x1 = layers[size - k - 1][1]
-        rev_x = rev_conv_1x1(rev_x)
+        rev_x, _ = rev_conv_1x1(rev_x)
     error = cf.mean(abs(x - rev_x))
     print(error)
 
@@ -100,7 +100,7 @@ def check_layer():
     rev_x = y
     for k in range(size):
         rev_conv_1x1 = layers[size - k - 1][1]
-        rev_x = rev_conv_1x1(rev_x)
+        rev_x, _ = rev_conv_1x1(rev_x)
     error = cf.mean(abs(x - rev_x))
     print(error)
 
@@ -125,7 +125,7 @@ def check_layer():
         y, _ = coupling_layer(y)
     rev_x = y
     for _ in range(4 * 32):
-        rev_x = rev_coupling_layer(rev_x)
+        rev_x, _ = rev_coupling_layer(rev_x)
     error = cf.mean(abs(x - rev_x))
     print(error)
 
@@ -151,10 +151,10 @@ def check_model():
             actnorm, conv_1x1, coupling_layer = encoder[level][depth]
 
             params = actnorm.params
-            params.scale.W.data = xp.random.normal(
-                1.0, 0.1, size=params.scale.W.data.shape).astype("float32")
-            params.bias.b.data = xp.random.normal(
-                0.0, 0.1, size=params.bias.b.data.shape).astype("float32")
+            params.scale.data = xp.random.normal(
+                1.0, 0.1, size=params.scale.data.shape).astype("float32")
+            params.bias.data = xp.random.normal(
+                0.0, 0.1, size=params.bias.data.shape).astype("float32")
 
             params = conv_1x1.params
             shape = params.conv.W.data.shape
@@ -166,28 +166,28 @@ def check_model():
                 0.0, 0.1, size=params.conv_1.W.data.shape).astype("float32")
             params.conv_2.W.data = xp.random.normal(
                 0.0, 0.1, size=params.conv_2.W.data.shape).astype("float32")
-            params.conv_3.W.data = xp.zeros(
-                params.conv_3.W.data.shape, dtype="float32")
+            params.conv_scale.W.data = xp.zeros(
+                params.conv_scale.W.data.shape, dtype="float32")
+            params.conv_bias.W.data = xp.zeros(
+                params.conv_bias.W.data.shape, dtype="float32")
 
     decoder = encoder.reverse()
     decoder.to_gpu()
 
     factorized_z, logdet = encoder(x)
-    rev_x = decoder(factorized_z)
+    rev_x, rev_logdet = decoder(factorized_z)
     error = cf.mean(abs(x - rev_x))
+    print(logdet, rev_logdet)
     print(error)
 
 
 def check_squeeze():
     factor = 2
-    shape = (1, 3, 8, 8)
+    shape = (1, 3, 256, 256)
     x = xp.arange(0, np.prod(shape)).reshape(shape)
-    print(x)
     y = glow.nn.chainer.functions.squeeze(x, factor=factor, module=xp)
-    print(y)
     _x = glow.nn.chainer.functions.unsqueeze(y, factor=factor, module=xp)
     print(xp.mean(xp.abs(x - _x)))
-    exit()
 
 
 def main():

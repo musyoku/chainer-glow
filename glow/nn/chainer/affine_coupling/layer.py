@@ -53,4 +53,8 @@ class ReverseAffineCoupling(base.ReverseAffineCoupling):
         xa = ya / (scale + 1e-12) - bias
         xb = yb
         x = cf.concat((xa, xb), axis=1)
-        return x
+        log_det = self.compute_log_determinant(scale)
+        return x, log_det
+
+    def compute_log_determinant(self, scale):
+        return -cf.sum(cf.log(abs(scale)))

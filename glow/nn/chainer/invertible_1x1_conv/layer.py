@@ -25,9 +25,15 @@ class ReverseInvertible1x1Conv(base.ReverseInvertible1x1Conv):
     def __init__(self, params: Parameters):
         self.params = params
 
-    def __call__(self, x):
-        y = self.params.conv(x)
-        return y
+    def __call__(self, y):
+        log_det = self.compute_log_determinant(y)
+        x = self.params.conv(y)
+        return x, log_det
+
+    def compute_log_determinant(self, x):
+        h, w = x.shape[2:]
+        W = self.params.conv.W
+        return h * w * cf.log(abs(cf.det(W)))
 
 
 class LUInvertible1x1Conv(base.Invertible1x1Conv):
@@ -48,6 +54,11 @@ class LUReverseInvertible1x1Conv(base.ReverseInvertible1x1Conv):
     def __init__(self, params: Parameters):
         self.params = params
 
-    def __call__(self, x):
-        y = self.params.conv(x)
-        return y
+    def __call__(self, y):
+        x = self.params.conv(y)
+        log_det = self.compute_log_determinant(y)
+        return x, log_det
+
+    def compute_log_determinant(self, x):
+        h, w = x.shape[2:]
+        return h * w * cf.sum(cf.log(abs(self.params.s)))

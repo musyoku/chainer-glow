@@ -41,20 +41,6 @@ def main():
         cuda.get_device(args.gpu_device).use()
         xp = cupy
 
-    files = Path(args.dataset_path).glob("*.png")
-    images = []
-    for filepath in files:
-        image = np.array(Image.open(filepath)).astype("float32")
-        image = image / 255.0 - 0.5
-        image = image.transpose((2, 0, 1))
-        images.append(image)
-    images = np.asanyarray(images)
-
-    dataset = glow.dataset.png.Dataset(images)
-    iterator = glow.dataset.png.Iterator(dataset, batch_size=1)
-
-    print(tabulate([["#image", len(dataset)]]))
-
     hyperparams = Hyperparameters(args.snapshot_path)
     print(
         tabulate([
@@ -66,6 +52,22 @@ def main():
             ["num_bits_x", hyperparams.num_bits_x],
         ]))
     num_bins_x = 2.0**hyperparams.num_bits_x
+
+    files = Path(args.dataset_path).glob("*.png")
+    images = []
+    for filepath in files:
+        image = np.array(Image.open(filepath)).astype("float32")
+        if hyperparams.num_bits_x < 8:
+            image = np.floor(image / (2**(8 - hyperparams.num_bits_x)))
+        image = image / num_bins_x - 0.5
+        image = image.transpose((2, 0, 1))
+        images.append(image)
+    images = np.asanyarray(images)
+
+    dataset = glow.dataset.png.Dataset(images)
+    iterator = glow.dataset.png.Iterator(dataset, batch_size=1)
+
+    print(tabulate([["#image", len(dataset)]]))
 
     encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
     decoder = encoder.reverse()
@@ -82,8 +84,14 @@ def main():
         while True:
             for data_indices in iterator:
                 x = to_gpu(dataset[data_indices])
-                x += xp.random.uniform(0.0, 1.0 / 256.0, size=x.shape)
+                x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
                 factorized_z, _ = encoder(x)
+
+                for zi in factorized_z:
+                    noise = xp.random.normal(
+                        0, 0.2, size=zi.shape).astype("float32")
+                    zi.data += noise
+
                 rev_x = decoder(factorized_z)
 
                 x_img = make_uint8(x[0], num_bins_x)
