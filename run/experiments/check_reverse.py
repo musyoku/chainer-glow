@@ -7,7 +7,7 @@ import cupy as xp
 import numpy as np
 from chainer.backends import cuda
 
-sys.path.append(os.path.join("..", "..", ".."))
+sys.path.append(os.path.join("..", ".."))
 import glow
 
 sys.path.append("..")

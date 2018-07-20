@@ -17,7 +17,7 @@ import numpy as np
 from chainer.backends import cuda
 
 sys.path.append(".")
-sys.path.append(os.path.join("..", ".."))
+sys.path.append("..")
 import glow
 
 from hyperparams import Hyperparameters
@@ -79,7 +79,8 @@ def main():
     xp = cupy
 
     num_bins_x = 2**args.num_bits_x
-
+    images = None
+    
     if comm.rank == 0:
         assert args.dataset_format in ["png", "npy"]
         files = Path(args.dataset_path).glob("*.{}".format(
@@ -107,7 +108,7 @@ def main():
             raise NotImplementedError
 
         assert args.image_size == images.shape[2]
-        
+
         x_mean = np.mean(images)
         x_var = np.var(images)
 

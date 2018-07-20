@@ -10,12 +10,14 @@ import matplotlib.pyplot as plt
 
 from chainer.backends import cuda
 from tabulate import tabulate
+from PIL import Image
+from pathlib import Path
 
-sys.path.append(os.path.join("..", "..", ".."))
+sys.path.append(os.path.join("..", ".."))
 import glow
 
 sys.path.append("..")
-from model import InferenceModel, GenerativeModel, to_cpu
+from model import InferenceModel, GenerativeModel, to_cpu, to_gpu
 from hyperparams import Hyperparameters
 
 
@@ -49,8 +51,23 @@ def main():
             ["lu_decomposition", hyperparams.lu_decomposition],
             ["num_bits_x", hyperparams.num_bits_x],
         ]))
-
     num_bins_x = 2.0**hyperparams.num_bits_x
+
+    files = Path(args.dataset_path).glob("*.png")
+    images = []
+    for filepath in files:
+        image = np.array(Image.open(filepath)).astype("float32")
+        if hyperparams.num_bits_x < 8:
+            image = np.floor(image / (2**(8 - hyperparams.num_bits_x)))
+        image = image / num_bins_x - 0.5
+        image = image.transpose((2, 0, 1))
+        images.append(image)
+    images = np.asanyarray(images)
+
+    dataset = glow.dataset.png.Dataset(images)
+    iterator = glow.dataset.png.Iterator(dataset, batch_size=1)
+
+    print(tabulate([["#image", len(dataset)]]))
 
     encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
     decoder = encoder.reverse()
@@ -59,24 +76,38 @@ def main():
         encoder.to_gpu()
         decoder.to_gpu()
 
-    while True:
-        z = xp.random.normal(
-            0, args.temperature, size=(
-                1,
-                3,
-            ) + hyperparams.image_size).astype("float32")
+    fig = plt.figure(figsize=(8, 4))
+    left = fig.add_subplot(1, 2, 1)
+    right = fig.add_subplot(1, 2, 2)
 
-        with chainer.no_backprop_mode():
-            x, _ = decoder(z)
-            x_img = make_uint8(x.data[0], num_bins_x)
-            plt.imshow(x_img, interpolation="none")
-            plt.pause(.01)
+    with chainer.no_backprop_mode():
+        while True:
+            for data_indices in iterator:
+                x = to_gpu(dataset[data_indices])
+                x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
+                factorized_z, _ = encoder(x)
+
+                # for zi in factorized_z:
+                #     noise = xp.random.normal(
+                #         0, 0.2, size=zi.shape).astype("float32")
+                #     zi.data += noise
+
+                rev_x, _ = decoder(factorized_z)
+
+                x_img = make_uint8(x[0], num_bins_x)
+                rev_x_img = make_uint8(rev_x.data[0], num_bins_x)
+
+                left.imshow(x_img, interpolation="none")
+                right.imshow(rev_x_img, interpolation="none")
+
+                plt.pause(.01)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--snapshot-path", "-snapshot", type=str, required=True)
+    parser.add_argument("--dataset-path", "-dataset", type=str, required=True)
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
     args = parser.parse_args()

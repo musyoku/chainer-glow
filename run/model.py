@@ -9,7 +9,7 @@ from chainer import functions as cf
 from chainer.serializers import load_hdf5, save_hdf5
 from chainer.backends import cuda
 
-sys.path.append(os.path.join("..", ".."))
+sys.path.append("..")
 import glow
 
 from glow.nn.chainer.functions import squeeze, unsqueeze

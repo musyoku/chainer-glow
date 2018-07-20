@@ -16,7 +16,7 @@ import numpy as np
 from chainer.backends import cuda
 
 sys.path.append(".")
-sys.path.append(os.path.join("..", ".."))
+sys.path.append("..")
 import glow
 
 from hyperparams import Hyperparameters
