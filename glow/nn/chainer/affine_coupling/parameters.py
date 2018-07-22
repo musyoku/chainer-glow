@@ -1,5 +1,6 @@
 import chainer
 import chainer.links as L
+import numpy as np
 from chainer.initializers import Zero, HeNormal
 
 
@@ -24,17 +25,32 @@ class Parameters(chainer.Chain):
                 stride=1,
                 pad=0,
                 initialW=(HeNormal(0.1)))
-            self.conv_scale = L.Convolution2D(
+            self.conv_3 = L.Convolution2D(
                 channels_h,
-                channels_x // 2,
+                channels_x,
                 ksize=3,
                 stride=1,
                 pad=1,
-                initialW=Zero())
-            self.conv_bias = L.Convolution2D(
-                channels_h,
-                channels_x // 2,
-                ksize=3,
-                stride=1,
-                pad=1,
-                initialW=Zero())
+                initialW=(HeNormal(0.1)))
+            # self.conv_scale = L.Convolution2D(
+            #     channels_h,
+            #     channels_x // 2,
+            #     ksize=3,
+            #     stride=1,
+            #     pad=1,
+            #     initialW=Zero())
+            # self.conv_bias = L.Convolution2D(
+            #     channels_h,
+            #     channels_x // 2,
+            #     ksize=3,
+            #     stride=1,
+            #     pad=1,
+            #     initialW=Zero())
+
+    def reverse_copy(self):
+        copy = Parameters(self.channels_x, self.channels_h)
+        if self.xp is not np:
+            copy.to_gpu()
+        copy.scale.data[...] = self.scale.data
+        copy.bias.data[...] = self.bias.data
+        return copy

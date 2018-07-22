@@ -171,7 +171,6 @@ def check_model():
                 params.conv_bias.W.data.shape, dtype="float32")
 
     decoder = encoder.reverse()
-    decoder.to_gpu()
 
     factorized_z, logdet = encoder(x)
     rev_x, rev_logdet = decoder(factorized_z)

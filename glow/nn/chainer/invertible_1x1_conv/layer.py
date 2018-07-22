@@ -23,6 +23,10 @@ class Invertible1x1Conv(base.Invertible1x1Conv):
             det += 1e-16
         return h * w * cf.log(abs(det))
 
+    def reverse_copy(self):
+        params = self.params.reverse_copy()
+        return ReverseInvertible1x1Conv(params)
+
 
 class ReverseInvertible1x1Conv(base.ReverseInvertible1x1Conv):
     def __init__(self, params: Parameters):
@@ -52,16 +56,6 @@ class LUInvertible1x1Conv(base.Invertible1x1Conv):
         h, w = x.shape[2:]
         return h * w * cf.sum(cf.log(abs(self.params.s)))
 
-
-class LUReverseInvertible1x1Conv(base.ReverseInvertible1x1Conv):
-    def __init__(self, params: Parameters):
-        self.params = params
-
-    def __call__(self, y):
-        x = self.params.conv(y)
-        log_det = self.compute_log_determinant(y)
-        return x, log_det
-
-    def compute_log_determinant(self, x):
-        h, w = x.shape[2:]
-        return h * w * cf.sum(cf.log(abs(self.params.s)))
+    def reverse_copy(self):
+        params = self.params.reverse_copy()
+        return ReverseInvertible1x1Conv(params)

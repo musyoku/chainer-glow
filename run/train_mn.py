@@ -208,7 +208,6 @@ def main():
         if True:
             with chainer.no_backprop_mode():
                 decoder = encoder.reverse()
-                decoder.to_gpu()
                 factorized_z, logdet = encoder(x)
                 rev_x, _ = decoder(factorized_z)
                 rev_x_mean = float(xp.mean(rev_x.data))

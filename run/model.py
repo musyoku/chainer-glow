@@ -84,9 +84,9 @@ class Flow(object):
         yield self.coupling_layer
 
     def reverse(self):
-        rev_actnorm = reverse_actnorm(self.actnorm)
-        rev_conv_1x1 = reverse_conv_1x1(self.conv_1x1)
-        rev_coupling_layer = reverse_coupling_layer(self.coupling_layer)
+        rev_actnorm = self.actnorm.reverse_copy()
+        rev_conv_1x1 = self.conv_1x1.reverse_copy()
+        rev_coupling_layer = self.coupling_layer.reverse_copy()
         return Flow(
             rev_actnorm, rev_conv_1x1, rev_coupling_layer, reverse=True)
 
@@ -242,7 +242,7 @@ class InferenceModel():
             for flow in block.flows:
                 mean = xp.mean(out.data, axis=(0, 2, 3), keepdims=True)
                 std = xp.std(out.data, axis=(0, 2, 3), keepdims=True)
-                
+
                 params = flow.actnorm.params
                 params.scale.data = 1.0 / std
                 params.bias.data = -mean
@@ -255,65 +255,6 @@ class InferenceModel():
 
     def reverse(self):
         return GenerativeModel(self)
-
-
-def reverse_actnorm(layer: glow.nn.chainer.actnorm.Actnorm):
-    source = layer.params
-    target = glow.nn.chainer.actnorm.Parameters(source.channels)
-    target.scale.data[...] = to_cpu(source.scale.data)
-    target.bias.data[...] = to_cpu(source.bias.data)
-    return glow.nn.chainer.actnorm.ReverseActnorm(params=target)
-
-
-def reverse_conv_1x1(layer):
-    if isinstance(layer,
-                  glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv):
-        source = layer.params
-        target = glow.nn.chainer.invertible_1x1_conv.Parameters(
-            source.channels)
-        source_weight = source.conv.W.data
-        # square matrix
-        weight = source_weight.reshape(source_weight.shape[:2])
-        xp = cuda.get_array_module(weight)
-        inv_weight = xp.linalg.inv(weight)
-        # conv kernel
-        target.conv.W.data = to_cpu(
-            inv_weight.reshape(inv_weight.shape + (1, 1)))
-        return glow.nn.chainer.invertible_1x1_conv.ReverseInvertible1x1Conv(
-            params=target)
-
-    if isinstance(layer,
-                  glow.nn.chainer.invertible_1x1_conv.LUInvertible1x1Conv):
-        source = layer.params
-        target = glow.nn.chainer.invertible_1x1_conv.Parameters(
-            source.channels)
-        source_weight = source.W.data
-        # square matrix
-        weight = source_weight.reshape(source_weight.shape[:2])
-        xp = cuda.get_array_module(weight)
-        inv_weight = xp.linalg.inv(weight)
-        # conv kernel
-        target.conv.W.data = to_cpu(
-            inv_weight.reshape(inv_weight.shape + (1, 1)))
-        return glow.nn.chainer.invertible_1x1_conv.ReverseInvertible1x1Conv(
-            params=target)
-
-    raise NotImplementedError
-
-
-def reverse_coupling_layer(
-        layer: glow.nn.chainer.affine_coupling.AffineCoupling):
-    source = layer.nn.params
-    target = glow.nn.chainer.affine_coupling.Parameters(
-        source.channels_x, source.channels_h)
-    target.conv_1.W.data[...] = to_cpu(source.conv_1.W.data)
-    target.conv_2.W.data[...] = to_cpu(source.conv_2.W.data)
-    target.conv_scale.W.data[...] = to_cpu(source.conv_scale.W.data)
-    target.conv_bias.W.data[...] = to_cpu(source.conv_bias.W.data)
-    nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
-        params=target)
-    return glow.nn.chainer.affine_coupling.ReverseAffineCoupling(
-        nn=nonlinear_mapping)
 
 
 class GenerativeModel():

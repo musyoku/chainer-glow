@@ -25,6 +25,10 @@ class Actnorm(base.Actnorm):
         h, w = x.shape[2:]
         return h * w * cf.sum(cf.log(abs(scale)))
 
+    def reverse_copy(self):
+        params = self.params.reverse_copy()
+        return ReverseActnorm(params)
+
 
 class ReverseActnorm(base.ReverseActnorm):
     def __init__(self, params: Parameters):

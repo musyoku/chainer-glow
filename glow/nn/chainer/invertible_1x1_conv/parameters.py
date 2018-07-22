@@ -24,6 +24,19 @@ class Parameters(chainer.Chain):
                 nobias=True,
                 initialW=rotation_mat)
 
+    def reverse_copy(self):
+        copy = Parameters(self.channels)
+        xp = self.xp
+        if xp is not np:
+            copy.to_gpu()
+        source_weight = self.conv.W.data
+        # square matrix
+        weight = source_weight.reshape(source_weight.shape[:2])
+        inv_weight = xp.linalg.inv(weight)
+        # conv kernel
+        copy.conv.W.data = inv_weight.reshape(inv_weight.shape + (1, 1))
+        return copy
+
 
 class Diag(chainer.function.Function):
     def check_type_forward(self, in_types):
@@ -44,26 +57,6 @@ class Diag(chainer.function.Function):
 
 def diag(vector):
     return Diag()(vector)
-
-class Mask(chainer.function.Function):
-    def check_type_forward(self, in_types):
-        type_check.expect(in_types.size() == 1, )
-
-    def forward(self, inputs):
-        vector = inputs[0]
-        xp = cuda.get_array_module(vector)
-        mat = xp.diag(vector)
-        return mat,
-
-    def backward(self, inputs, grad_outputs):
-        vector = inputs[0]
-        grad = grad_outputs[0]
-        xp = cuda.get_array_module(vector)
-        return xp.diag(grad),
-
-
-def mask(vector):
-    return Mask()(vector)
 
 
 class LUParameters(chainer.Chain):
@@ -92,9 +85,22 @@ class LUParameters(chainer.Chain):
             self.add_persistent("l_mask", l_mask)
             self.add_persistent("l_diag", l_diag)
 
-
     @property
     def W(self):
         kernel = self.w_p @ (self.w_l * self.l_mask + self.l_diag) @ (
             self.w_u * self.u_mask + diag(self.s))
         return cf.reshape(kernel, kernel.shape + (1, 1))
+
+
+    def reverse_copy(self):
+        copy = Parameters(self.channels)
+        xp = self.xp
+        if xp is not np:
+            copy.to_gpu()
+        source_weight = self.W.data
+        # square matrix
+        weight = source_weight.reshape(source_weight.shape[:2])
+        inv_weight = xp.linalg.inv(weight)
+        # conv kernel
+        copy.conv.W.data = inv_weight.reshape(inv_weight.shape + (1, 1))
+        return copy
