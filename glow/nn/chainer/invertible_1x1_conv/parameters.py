@@ -83,14 +83,6 @@ class LUParameters(chainer.Chain):
         l_diag = np.eye(w_l.shape[0])
         w_u = w_u * u_mask
 
-        # w_u = np.ascontiguousarray(w_u)
-        # w_l = np.ascontiguousarray(w_l)
-        # s = np.ascontiguousarray(s)
-        # w_p = np.ascontiguousarray(w_p)
-        # self.u_mask = np.ascontiguousarray(u_mask)
-        # self.l_mask = np.ascontiguousarray(l_mask)
-        # l_diag = np.ascontiguousarray(l_diag)
-
         with self.init_scope():
             self.w_u = chainer.Parameter(initializer=w_u, shape=w_u.shape)
             self.w_l = chainer.Parameter(initializer=w_l, shape=w_l.shape)
