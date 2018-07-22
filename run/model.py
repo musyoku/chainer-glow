@@ -160,7 +160,7 @@ class InferenceModel():
                             params)
 
                     params = glow.nn.chainer.affine_coupling.Parameters(
-                        channels_x=channels_x,
+                        channels_x=channels_x // 2,
                         channels_h=hyperparams.nn_hidden_channels)
                     nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
                         params)  # NN

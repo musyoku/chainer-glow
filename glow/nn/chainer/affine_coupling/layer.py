@@ -13,8 +13,8 @@ class NonlinearMapping(base.NonlinearMapping):
         out = x
         out = cf.relu(self.params.conv_1(out))
         out = cf.relu(self.params.conv_2(out))
-        out = cf.relu(self.params.conv_3(out))
-        split = out.shape[1]
+        out = self.params.conv_3(out)
+        split = out.shape[1] // 2
         log_scale = out[:, :split]
         bias = out[:, split:]
         return log_scale, bias

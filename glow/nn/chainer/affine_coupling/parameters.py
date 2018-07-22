@@ -12,7 +12,7 @@ class Parameters(chainer.Chain):
 
         with self.init_scope():
             self.conv_1 = L.Convolution2D(
-                channels_x // 2,
+                channels_x,
                 channels_h,
                 ksize=3,
                 stride=1,
@@ -27,7 +27,7 @@ class Parameters(chainer.Chain):
                 initialW=(HeNormal(0.1)))
             self.conv_3 = L.Convolution2D(
                 channels_h,
-                channels_x,
+                channels_x * 2,
                 ksize=3,
                 stride=1,
                 pad=1,
@@ -51,6 +51,7 @@ class Parameters(chainer.Chain):
         copy = Parameters(self.channels_x, self.channels_h)
         if self.xp is not np:
             copy.to_gpu()
-        copy.scale.data[...] = self.scale.data
-        copy.bias.data[...] = self.bias.data
+        copy.conv_1.W.data[...] = self.conv_1.W.data
+        copy.conv_2.W.data[...] = self.conv_2.W.data
+        copy.conv_3.W.data[...] = self.conv_3.W.data
         return copy
