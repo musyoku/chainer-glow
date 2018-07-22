@@ -54,7 +54,7 @@ def merge_factorized_z(factorized_z, factor=2):
 
 def preprocess(image, num_bits_x):
     num_bins_x = 2**num_bits_x
-    if args.num_bits_x < 8:
+    if num_bits_x < 8:
         image = np.floor(image / (2**(8 - num_bits_x)))
     image = image / num_bins_x - 0.5
     if image.ndim == 3:
