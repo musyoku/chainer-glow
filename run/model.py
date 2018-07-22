@@ -123,8 +123,14 @@ class Block(object):
 
 
 class InferenceModel():
-    def __init__(self, hyperparams: Hyperparameters, hdf5_path=None):
+    def __init__(self,
+                 hyperparams: Hyperparameters,
+                 hdf5_path=None,
+                 coupling="additive"):
         assert isinstance(hyperparams, Hyperparameters)
+        available_couplings = ["additive", "affine"]
+        assert coupling in available_couplings
+
         self.hyperparams = hyperparams
         self.params = chainer.ChainList()
         self.blocks = []
@@ -159,13 +165,24 @@ class InferenceModel():
                         conv_1x1 = glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv(
                             params)
 
-                    params = glow.nn.chainer.affine_coupling.Parameters(
-                        channels_x=channels_x // 2,
-                        channels_h=hyperparams.nn_hidden_channels)
-                    nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
-                        params)  # NN
-                    coupling_layer = glow.nn.chainer.affine_coupling.AffineCoupling(
-                        nn=nonlinear_mapping)
+                    if coupling == "additive":
+                        params = glow.nn.chainer.additive_coupling.Parameters(
+                            channels_x=channels_x // 2,
+                            channels_h=hyperparams.nn_hidden_channels)
+                        nonlinear_mapping = glow.nn.chainer.additive_coupling.NonlinearMapping(
+                            params)  # NN
+                        coupling_layer = glow.nn.chainer.additive_coupling.AdditiveCoupling(
+                            nn=nonlinear_mapping)
+                    elif coupling == "affine":
+                        params = glow.nn.chainer.affine_coupling.Parameters(
+                            channels_x=channels_x // 2,
+                            channels_h=hyperparams.nn_hidden_channels)
+                        nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
+                            params)  # NN
+                        coupling_layer = glow.nn.chainer.affine_coupling.AffineCoupling(
+                            nn=nonlinear_mapping)
+                    else:
+                        raise NotImplementedError
 
                     flows.append(Flow(actnorm, conv_1x1, coupling_layer))
 

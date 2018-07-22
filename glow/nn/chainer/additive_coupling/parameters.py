@@ -27,7 +27,7 @@ class Parameters(chainer.Chain):
                 initialW=(HeNormal(0.1)))
             self.conv_3 = L.Convolution2D(
                 channels_h,
-                channels_x * 2,
+                channels_x,
                 ksize=3,
                 stride=1,
                 pad=1,
