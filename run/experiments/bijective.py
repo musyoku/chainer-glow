@@ -34,6 +34,20 @@ def make_uint8(array, bins):
             (255 / bins), 0, 255))
 
 
+def preprocess(image, num_bits_x):
+    num_bins_x = 2**num_bits_x
+    if num_bits_x < 8:
+        image = np.floor(image / (2**(8 - num_bits_x)))
+    image = image / num_bins_x - 0.5
+    if image.ndim == 3:
+        image = image.transpose((2, 0, 1))
+    elif image.ndim == 4:
+        image = image.transpose((0, 3, 1, 2))
+    else:
+        raise NotImplementedError
+    return image
+
+
 def main():
     xp = np
     using_gpu = args.gpu_device >= 0
@@ -53,16 +67,30 @@ def main():
         ]))
     num_bins_x = 2.0**hyperparams.num_bits_x
 
-    files = Path(args.dataset_path).glob("*.png")
-    images = []
-    for filepath in files:
-        image = np.array(Image.open(filepath)).astype("float32")
-        if hyperparams.num_bits_x < 8:
-            image = np.floor(image / (2**(8 - hyperparams.num_bits_x)))
-        image = image / num_bins_x - 0.5
-        image = image.transpose((2, 0, 1))
-        images.append(image)
-    images = np.asanyarray(images)
+    assert args.dataset_format in ["png", "npy"]
+
+    files = Path(args.dataset_path).glob("*.{}".format(args.dataset_format))
+    if args.dataset_format == "png":
+        images = []
+        for filepath in files:
+            image = np.array(Image.open(filepath)).astype("float32")
+            image = preprocess(image, hyperparams.num_bits_x)
+            images.append(image)
+        assert len(images) > 0
+        images = np.asanyarray(images)
+    elif args.dataset_format == "npy":
+        images = []
+        for filepath in files:
+            array = np.load(filepath).astype("float32")
+            array = preprocess(array, hyperparams.num_bits_x)
+            images.append(array)
+        assert len(images) > 0
+        num_files = len(images)
+        images = np.asanyarray(images)
+        images = images.reshape((num_files * images.shape[1], ) +
+                                images.shape[2:])
+    else:
+        raise NotImplementedError
 
     dataset = glow.dataset.png.Dataset(images)
     iterator = glow.dataset.png.Iterator(dataset, batch_size=1)
@@ -93,6 +121,9 @@ def main():
                 #     zi.data += noise
 
                 rev_x, _ = decoder(factorized_z)
+                print(
+                    xp.mean(x), xp.std(x), " ->", xp.mean(rev_x.data),
+                    xp.std(rev_x.data))
 
                 x_img = make_uint8(x[0], num_bins_x)
                 rev_x_img = make_uint8(rev_x.data[0], num_bins_x)
@@ -110,5 +141,6 @@ if __name__ == "__main__":
     parser.add_argument("--dataset-path", "-dataset", type=str, required=True)
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
+    parser.add_argument("--dataset-format", "-ext", type=str, required=True)
     args = parser.parse_args()
     main()
