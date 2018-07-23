@@ -12,12 +12,11 @@ class Actnorm(base.Actnorm):
         self.scale = self.params.scale
 
     def __call__(self, x):
-        scale = cf.tanh(self.scale + 2) + 1e-12
+        bias = cf.broadcast_to(self.bias, x.shape)
+        scale = cf.broadcast_to(self.scale, x.shape)
+        y = (x + bias) * scale
 
-        y = x + cf.broadcast_to(self.bias, x.shape)
-        y = y * cf.broadcast_to(scale, x.shape)
-
-        log_det = self.compute_log_determinant(x, scale)
+        log_det = self.compute_log_determinant(x, self.scale)
 
         return y, log_det
 
@@ -37,12 +36,11 @@ class ReverseActnorm(base.ReverseActnorm):
         self.scale = self.params.scale
 
     def __call__(self, y):
-        scale = cf.tanh(self.scale + 2) + 1e-12
+        bias = cf.broadcast_to(self.bias, y.shape)
+        scale = cf.broadcast_to(self.scale, y.shape)
+        x = y / scale - bias
 
-        x = y / cf.broadcast_to(scale, y.shape)
-        x = x - cf.broadcast_to(self.bias, y.shape)
-
-        log_det = self.compute_log_determinant(x, scale)
+        log_det = self.compute_log_determinant(x, self.scale)
 
         return x, log_det
 

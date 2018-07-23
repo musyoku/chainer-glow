@@ -31,7 +31,7 @@ class Parameters(chainer.Chain):
                 ksize=3,
                 stride=1,
                 pad=1,
-                initialW=(HeNormal(0.1)))
+                initialW=Zero())
 
     def reverse_copy(self):
         copy = Parameters(self.channels_x, self.channels_h)

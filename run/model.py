@@ -35,6 +35,11 @@ def closure(layer):
     return func
 
 
+def split_channel(x):
+    n = x.shape[1] // 2
+    return x[:, :n], x[:, n:]
+
+
 class Flow(object):
     def __init__(self, actnorm, conv_1x1, coupling_layer, reverse=False):
         self.actnorm = actnorm
@@ -48,35 +53,47 @@ class Flow(object):
             self.params.append(conv_1x1.params)
             self.params.append(coupling_layer.nn.params)
 
-    def __call__(self, x, reduce_memory=False):
+    def forward_step(self, x, reduce_memory=False):
         sum_logdet = 0
         out = x
-        if self.is_reversed is False:
-            if reduce_memory:
-                out, logdet = cf.forget(closure(self.actnorm), out)
-            else:
-                out, logdet = self.actnorm(out)
-            sum_logdet += logdet
 
-            out, logdet = self.conv_1x1(out)
-            sum_logdet += logdet
+        if reduce_memory:
+            out, logdet = cf.forget(closure(self.actnorm), out)
+        else:
+            out, logdet = self.actnorm(out)
+        sum_logdet += logdet
 
-            if reduce_memory:
-                out, logdet = cf.forget(closure(self.coupling_layer), out)
-            else:
-                out, logdet = self.coupling_layer(out)
-            sum_logdet += logdet
+        out, logdet = self.conv_1x1(out)
+        sum_logdet += logdet
+
+        if reduce_memory:
+            out, logdet = cf.forget(closure(self.coupling_layer), out)
         else:
             out, logdet = self.coupling_layer(out)
-            sum_logdet += logdet
-
-            out, logdet = self.conv_1x1(out)
-            sum_logdet += logdet
-
-            out, logdet = self.actnorm(out)
-            sum_logdet += logdet
+        sum_logdet += logdet
 
         return out, sum_logdet
+
+    def reverse_step(self, x, reduce_memory=False):
+        sum_logdet = 0
+        out = x
+
+        out, logdet = self.coupling_layer(out)
+        sum_logdet += logdet
+
+        out, logdet = self.conv_1x1(out)
+        sum_logdet += logdet
+
+        out, logdet = self.actnorm(out)
+        sum_logdet += logdet
+
+        return out, sum_logdet
+
+    def __call__(self, x, reduce_memory=False):
+        if self.is_reversed:
+            return self.reverse_step(x, reduce_memory)
+        else:
+            return self.forward_step(x, reduce_memory)
 
     def __iter__(self):
         yield self.actnorm
@@ -92,26 +109,92 @@ class Flow(object):
 
 
 class Block(object):
-    def __init__(self, flows):
+    def __init__(self, flows, channels_x, split_output=False, reverse=False):
         self.flows = flows
         self.params = chainer.ChainList()
+        self.channels_x = channels_x
+        self.split_output = split_output
+        self.is_reversed = reverse
+
+        channels_in = channels_x // 2 if split_output else channels_x
+        channels_out = channels_x if split_output else channels_x * 2
+        prior_params = glow.nn.chainer.conv2d_zeros.Parameters(
+            channels_in=channels_in, channels_out=channels_out)
+        self.prior = glow.nn.chainer.conv2d_zeros.Conv2dZeros(prior_params)
 
         with self.params.init_scope():
             for flow in flows:
                 self.params.append(flow.params)
+            self.params.append(self.prior.params)
 
     def __getitem__(self, index):
         return self.flows[index]
 
-    def __call__(self, x, reduce_memory=False):
+    def forward_step(self, x, squeeze_factor, reduce_memory=False):
         sum_logdet = 0
         out = x
+
+        out = squeeze(out, factor=squeeze_factor)
 
         for flow in self.flows:
             out, logdet = flow(out, reduce_memory=reduce_memory)
             sum_logdet += logdet
 
+        if self.split_output:
+            zi, out = split_channel(out)
+            prior_in = out
+        else:
+            zi = out
+            out = None
+            xp = cuda.get_array_module(zi)
+            prior_in = xp.zeros_like(zi.data)
+
+        z_distritubion = self.prior(prior_in)
+        mean, ln_var = split_channel(z_distritubion)
+
+        return out, (zi, mean, ln_var), sum_logdet
+
+    def reverse_step(self,
+                     out,
+                     gaussian_eps,
+                     squeeze_factor,
+                     reduce_memory=False):
+        sum_logdet = 0
+        xp = cuda.get_array_module(gaussian_eps)
+
+        if self.split_output:
+            z_distritubion = self.prior(out)
+            mean, ln_var = split_channel(z_distritubion)
+            zi = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
+            out = cf.concat((zi, out), axis=1)
+        else:
+            zeros = xp.zeros_like(gaussian_eps.data)
+            z_distritubion = self.prior(zeros)
+            mean, ln_var = split_channel(z_distritubion)
+            out = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
+
+        for flow in self.flows:
+            out, logdet = flow(out, reduce_memory=reduce_memory)
+            sum_logdet += logdet
+
+        out = unsqueeze(out, factor=squeeze_factor)
+
         return out, sum_logdet
+
+    def __call__(self,
+                 x,
+                 squeeze_factor=2,
+                 gaussian_eps=None,
+                 reduce_memory=False):
+        if self.is_reversed:
+            return self.reverse_step(
+                x,
+                gaussian_eps=gaussian_eps,
+                squeeze_factor=squeeze_factor,
+                reduce_memory=reduce_memory)
+        else:
+            return self.forward_step(
+                x, squeeze_factor=squeeze_factor, reduce_memory=reduce_memory)
 
     def reverse(self):
         flows = []
@@ -119,7 +202,15 @@ class Block(object):
             rev_flow = flow.reverse()
             flows.append(rev_flow)
         flows.reverse()
-        return Block(flows)
+        copy = Block(
+            flows,
+            channels_x=self.channels_x,
+            split_output=self.split_output,
+            reverse=True)
+        if self.params.xp is not np:
+            copy.params.to_gpu()
+        copy.prior.params.conv.W.data[...] = self.prior.params.conv.W.data
+        return copy
 
 
 class InferenceModel():
@@ -186,7 +277,9 @@ class InferenceModel():
 
                     flows.append(Flow(actnorm, conv_1x1, coupling_layer))
 
-                block = Block(flows)
+                split_output = False if level == hyperparams.levels - 1 else True
+                block = Block(
+                    flows, channels_x=channels_x, split_output=split_output)
                 self.blocks.append(block)
                 self.params.append(block.params)
 
@@ -204,24 +297,12 @@ class InferenceModel():
         z = []
         sum_logdet = 0
         out = x
-        num_levels = len(self.blocks)
 
-        for level, block in enumerate(self.blocks):
-            # squeeze
-            out = squeeze(out, factor=self.hyperparams.squeeze_factor)
-
-            # step of flow
-            out, logdet = block(out)
+        for block in self.blocks:
+            out, zi_mean_lnvar, logdet = block(
+                out, squeeze_factor=self.hyperparams.squeeze_factor)
             sum_logdet += logdet
-
-            # split
-            if level == num_levels - 1:
-                z.append(out)
-            else:
-                n = out.shape[1]
-                zi = out[:, :n // 2]
-                out = out[:, n // 2:]
-                z.append(zi)
+            z.append(zi_mean_lnvar)
 
         return z, sum_logdet
 
@@ -267,8 +348,7 @@ class InferenceModel():
                 out, _ = flow(out)
 
             if level < levels - 1:
-                n = out.shape[1]
-                out = out[:, n // 2:]
+                _, out = split_channel(out)
 
     def reverse(self):
         return GenerativeModel(self)
@@ -298,9 +378,7 @@ class GenerativeModel():
             if level == self.hyperparams.levels - 1:
                 factorized_z.append(z)
             else:
-                n = z.shape[1]
-                zi = z[:, :n // 2]
-                z = z[:, n // 2:]
+                zi, z = split_channel(z)
                 factorized_z.append(zi)
         return factorized_z
 
@@ -309,21 +387,19 @@ class GenerativeModel():
             factorized_z = z
         else:
             factorized_z = self.factor_z(z)
+
         assert len(factorized_z) == len(self.blocks)
 
-        i = -1
-        out = factorized_z[i]
+        factorized_z = reversed(factorized_z)
+        out = None
         sum_logdet = 0
-        num_levels = len(self.blocks)
 
-        for level, block in enumerate(self.blocks):
-            out, logdet = block(out)
+        for block, zi in zip(self.blocks, factorized_z):
+            out, logdet = block(
+                out,
+                gaussian_eps=zi,
+                squeeze_factor=self.hyperparams.squeeze_factor)
             sum_logdet += logdet
-            out = unsqueeze(out)
-            if level < num_levels - 1:
-                i -= 1
-                zi = factorized_z[i]
-                out = cf.concat((zi, out), axis=1)
 
         return out, sum_logdet
 
