@@ -7,11 +7,11 @@
 **Todo**
 
 - [x] Implement inference model
-- [ ] Implement generative model
+- [x] Implement generative model
 - [x] Implement training loop
 - [ ] Quantitative experiments
-- [ ] LU decomposition
-- [ ] Debug
+- [x] LU decomposition
+- [x] Debug
 
 # Requirements
 
