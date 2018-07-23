@@ -91,7 +91,6 @@ class LUParameters(chainer.Chain):
             self.w_u * self.u_mask + diag(self.s))
         return cf.reshape(kernel, kernel.shape + (1, 1))
 
-
     def reverse_copy(self):
         copy = Parameters(self.channels)
         xp = self.xp

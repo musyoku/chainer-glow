@@ -26,5 +26,6 @@ class Parameters(chainer.Chain):
         if self.xp is not np:
             copy.to_gpu()
         copy.conv.W.data[...] = self.conv.W.data
+        copy.conv.b.data[...] = self.conv.b.data
         copy.scale.data[...] = self.scale.data
         return copy

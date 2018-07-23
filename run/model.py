@@ -40,6 +40,13 @@ def split_channel(x):
     return x[:, :n], x[:, n:]
 
 
+def zeros_like(x):
+    xp = cuda.get_array_module(x)
+    if isinstance(x, chainer.Variable):
+        x = x.data
+    return xp.zeros_like(x)
+
+
 class Flow(object):
     def __init__(self, actnorm, conv_1x1, coupling_layer, reverse=False):
         self.actnorm = actnorm
@@ -147,7 +154,7 @@ class Block(object):
             zi = out
             out = None
             xp = cuda.get_array_module(zi)
-            prior_in = xp.zeros_like(zi.data)
+            prior_in = zeros_like(zi)
 
         z_distritubion = self.prior(prior_in)
         mean, ln_var = split_channel(z_distritubion)
@@ -168,7 +175,7 @@ class Block(object):
             zi = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
             out = cf.concat((zi, out), axis=1)
         else:
-            zeros = xp.zeros_like(gaussian_eps.data)
+            zeros = zeros_like(gaussian_eps)
             z_distritubion = self.prior(zeros)
             mean, ln_var = split_channel(z_distritubion)
             out = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
@@ -390,11 +397,10 @@ class GenerativeModel():
 
         assert len(factorized_z) == len(self.blocks)
 
-        factorized_z = reversed(factorized_z)
         out = None
         sum_logdet = 0
 
-        for block, zi in zip(self.blocks, factorized_z):
+        for block, zi in zip(self.blocks, factorized_z[::-1]):
             out, logdet = block(
                 out,
                 gaussian_eps=zi,

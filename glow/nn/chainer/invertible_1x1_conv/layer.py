@@ -12,6 +12,7 @@ class Invertible1x1Conv(base.Invertible1x1Conv):
 
     def __call__(self, x):
         log_det = self.compute_log_determinant(x)
+
         y = self.params.conv(x)
         return y, log_det
 
@@ -20,7 +21,7 @@ class Invertible1x1Conv(base.Invertible1x1Conv):
         W = self.params.conv.W
         det = cf.det(W)
         if det.data == 0:
-            det += 1e-16
+            det += 1e-16    # avoid nan
         return h * w * cf.log(abs(det))
 
     def reverse_copy(self):
