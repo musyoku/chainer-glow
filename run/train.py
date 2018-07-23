@@ -178,8 +178,8 @@ def main():
             negative_log_likelihood = 0
             for (zi, mean, ln_var) in factorized_z:
                 negative_log_likelihood += cf.gaussian_nll(zi, mean, ln_var)
-            denom = math.log(2.0) * args.batch_size * num_pixels
-            loss = (negative_log_likelihood - logdet) / denom
+            denom = math.log(2.0) * num_pixels
+            loss = (negative_log_likelihood / args.batch_size - logdet) / denom
             encoder.cleargrads()
             loss.backward()
             optimizer.update(current_training_step)
@@ -197,7 +197,7 @@ def main():
                 "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - log_det: {:.8f}".
                 format(iteration + 1, batch_index + 1, len(iterator),
                        float(loss.data),
-                       float(negative_log_likelihood.data) / denom,
+                       float(negative_log_likelihood.data) / args.batch_size / denom,
                        float(logdet.data) / denom))
 
             if batch_index % 100 == 0:
