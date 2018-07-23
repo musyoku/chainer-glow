@@ -80,7 +80,7 @@ def main():
 
     num_bins_x = 2**args.num_bits_x
     images = None
-    
+
     if comm.rank == 0:
         assert args.dataset_format in ["png", "npy"]
         files = Path(args.dataset_path).glob("*.{}".format(
@@ -170,17 +170,22 @@ def main():
 
         for batch_index, data in enumerate(iterator):
             x = to_gpu(np.asanyarray(data))
-            batch_size = x.shape[0]
-
             x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
-            factorized_z, logdet = encoder(x, reduce_memory=args.reduce_memory)
+
+            batch_size = x.shape[0]
+            denom = math.log(2.0) * num_pixels
+
+            factorized_z_distribution, logdet = encoder(
+                x, reduce_memory=args.reduce_memory)
+
             logdet -= math.log(num_bins_x) * num_pixels
+
             negative_log_likelihood = 0
-            for zi in factorized_z:
-                negative_log_likelihood += glow.nn.chainer.functions.standard_normal_nll(
-                    zi)
-            denom = math.log(2.0) * batch_size * num_pixels
-            loss = (negative_log_likelihood - logdet) / denom
+            for (zi, mean, ln_var) in factorized_z_distribution:
+                negative_log_likelihood += cf.gaussian_nll(zi, mean, ln_var)
+
+            loss = (negative_log_likelihood / batch_size - logdet) / denom
+
             encoder.cleargrads()
             loss.backward()
             optimizer.update()
@@ -192,10 +197,12 @@ def main():
             if comm.rank == 0:
                 printr(
                     "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - log_det: {:.8f}".
-                    format(iteration + 1, batch_index + 1,
-                           len(dataset) // batch_size, float(loss.data),
-                           float(negative_log_likelihood.data) / denom,
-                           float(logdet.data) / denom))
+                    format(
+                        iteration + 1, batch_index + 1,
+                        len(dataset) // batch_size, float(loss.data),
+                        float(negative_log_likelihood.data) / batch_size /
+                        denom,
+                        float(logdet.data) / denom))
 
             if batch_index % 100 == 0:
                 encoder.serialize(args.snapshot_path)
@@ -208,7 +215,10 @@ def main():
         if True:
             with chainer.no_backprop_mode():
                 decoder = encoder.reverse()
-                factorized_z, logdet = encoder(x)
+                factorized_z_distribution, logdet = encoder(x)
+                factorized_z = []
+                for (zi, mean, ln_var) in factorized_z_distribution:
+                    factorized_z.append(zi)
                 rev_x, _ = decoder(factorized_z)
                 rev_x_mean = float(xp.mean(rev_x.data))
                 rev_x_var = float(xp.var(rev_x.data))

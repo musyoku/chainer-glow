@@ -14,7 +14,6 @@ import chainer.functions as cf
 import cupy
 import numpy as np
 from chainer.backends import cuda
-import matplotlib.pyplot as plt
 
 sys.path.append(".")
 sys.path.append("..")
@@ -173,13 +172,20 @@ def main():
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
             x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
-            factorized_z, logdet = encoder(x, reduce_memory=args.reduce_memory)
-            logdet -= math.log(num_bins_x) * num_pixels
-            negative_log_likelihood = 0
-            for (zi, mean, ln_var) in factorized_z:
-                negative_log_likelihood += cf.gaussian_nll(zi, mean, ln_var)
+
             denom = math.log(2.0) * num_pixels
+
+            factorized_z_distribution, logdet = encoder(
+                x, reduce_memory=args.reduce_memory)
+
+            logdet -= math.log(num_bins_x) * num_pixels
+
+            negative_log_likelihood = 0
+            for (zi, mean, ln_var) in factorized_z_distribution:
+                negative_log_likelihood += cf.gaussian_nll(zi, mean, ln_var)
+
             loss = (negative_log_likelihood / args.batch_size - logdet) / denom
+
             encoder.cleargrads()
             loss.backward()
             optimizer.update(current_training_step)
@@ -195,28 +201,15 @@ def main():
             sum_loss += loss_value
             printr(
                 "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - log_det: {:.8f}".
-                format(iteration + 1, batch_index + 1, len(iterator),
-                       float(loss.data),
-                       float(negative_log_likelihood.data) / args.batch_size / denom,
-                       float(logdet.data) / denom))
+                format(
+                    iteration + 1, batch_index + 1, len(iterator),
+                    float(loss.data),
+                    float(negative_log_likelihood.data) / args.batch_size /
+                    denom,
+                    float(logdet.data) / denom))
 
             if batch_index % 100 == 0:
                 encoder.serialize(args.snapshot_path)
-
-            if batch_index % 20 == 0:
-                with chainer.no_backprop_mode():
-                    decoder = encoder.reverse()
-                    z = xp.random.normal(
-                        0, 0.7, size=(
-                            1,
-                            3,
-                        ) + hyperparams.image_size).astype("float32")
-                    rev_x, _ = decoder(z)
-                    print(xp.mean(rev_x.data), xp.var(rev_x.data))
-
-                    x_img = make_uint8(rev_x.data[0], num_bins_x)
-                    plt.imshow(x_img, interpolation="none")
-                    plt.pause(0.01)
 
         # Check model reversibility
         rev_x_mean = None
@@ -226,7 +219,10 @@ def main():
         if True:
             with chainer.no_backprop_mode():
                 decoder = encoder.reverse()
-                factorized_z, logdet = encoder(x)
+                factorized_z_distribution, logdet = encoder(x)
+                factorized_z = []
+                for (zi, mean, ln_var) in factorized_z_distribution:
+                    factorized_z.append(zi)
                 rev_x, _ = decoder(factorized_z)
 
                 rev_x_mean = float(xp.mean(rev_x.data))
