@@ -135,12 +135,8 @@ class Block(object):
         self.is_reversed = reverse
 
         with self.params.init_scope():
-            if self.is_reversed:
-                for flow in reversed(flows):
-                    self.params.append(flow.params)
-            else:
-                for flow in flows:
-                    self.params.append(flow.params)
+            for flow in flows:
+                self.params.append(flow.params)
             self.params.append(self.prior.params)
 
     def __getitem__(self, index):

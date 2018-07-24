@@ -38,8 +38,8 @@ class Hyperparameters():
                     "nn_hidden_channels": self.nn_hidden_channels,
                     "num_bits_x": self.num_bits_x,
                     "image_size": self.image_size,
-                    "lu_decomposition": self.lu_decomposition,
                     "learn_z_parameters": self.learn_z_parameters,
+                    "lu_decomposition": self.lu_decomposition,
                 },
                 f,
                 indent=4,
@@ -49,6 +49,7 @@ class Hyperparameters():
         print(
             tabulate([
                 ["levels", self.levels],
+                ["squeeze_factor", self.squeeze_factor],
                 ["depth_per_level", self.depth_per_level],
                 ["nn_hidden_channels", self.nn_hidden_channels],
                 ["image_size", self.image_size],

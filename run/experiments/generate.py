@@ -40,15 +40,7 @@ def main():
         xp = cupy
 
     hyperparams = Hyperparameters(args.snapshot_path)
-    print(
-        tabulate([
-            ["levels", hyperparams.levels],
-            ["depth_per_level", hyperparams.depth_per_level],
-            ["nn_hidden_channels", hyperparams.nn_hidden_channels],
-            ["image_size", hyperparams.image_size],
-            ["lu_decomposition", hyperparams.lu_decomposition],
-            ["num_bits_x", hyperparams.num_bits_x],
-        ]))
+    hyperparams.print()
 
     num_bins_x = 2.0**hyperparams.num_bits_x
 
