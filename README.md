@@ -32,3 +32,5 @@ pip3 install tabulate
 ## CelebA HQ
 
 # Results
+
+[https://thumbs.gfycat.com/MealyBewitchedIcelandgull-size_restricted.gif](https://thumbs.gfycat.com/MealyBewitchedIcelandgull-size_restricted.gif)
