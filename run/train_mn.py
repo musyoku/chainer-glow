@@ -48,7 +48,7 @@ def merge_factorized_z(factorized_z, factor=2):
     for zi in reversed(factorized_z):
         xp = cuda.get_array_module(zi.data)
         z = zi.data if z is None else xp.concatenate((zi.data, z), axis=1)
-        z = glow.nn.chainer.functions.unsqueeze(z, factor, xp)
+        z = glow.nn.functions.unsqueeze(z, factor, xp)
     return z
 
 

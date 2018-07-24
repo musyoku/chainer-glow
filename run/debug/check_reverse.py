@@ -27,14 +27,14 @@ def check_layer():
     layers = []
     size = 4 * 32
     for _ in range(size):
-        params = glow.nn.chainer.actnorm.Parameters(channels=channels_x)
+        params = glow.nn.actnorm.Parameters(channels=channels_x)
         params.to_gpu()
 
         params.scale.data = xp.random.uniform(
             -1.0, 1.0, size=params.scale.data.shape).astype("float32")
         params.bias.data = xp.random.uniform(
             -1.0, 1.0, size=params.bias.data.shape).astype("float32")
-        actnorm = glow.nn.chainer.actnorm.Actnorm(params)
+        actnorm = glow.nn.actnorm.Actnorm(params)
         rev_actnorm = actnorm.reverse_copy()
         layers.append((actnorm, rev_actnorm))
 
@@ -53,7 +53,7 @@ def check_layer():
     layers = []
     size = 4 * 32
     for _ in range(size):
-        params = glow.nn.chainer.invertible_1x1_conv.Parameters(
+        params = glow.nn.invertible_1x1_conv.Parameters(
             channels=channels_x)
         params.to_gpu()
 
@@ -62,7 +62,7 @@ def check_layer():
         #     -1.0, 1.0, size=shape).astype("float32").reshape(shape + (1, 1))
         # params.conv.W.data += noise
 
-        conv_1x1 = glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv(
+        conv_1x1 = glow.nn.invertible_1x1_conv.Invertible1x1Conv(
             params)
         rev_conv_1x1 = conv_1x1.reverse_copy()
         layers.append((conv_1x1, rev_conv_1x1))
@@ -82,10 +82,10 @@ def check_layer():
     # layers = []
     # size = 4 * 32
     # for _ in range(size):
-    #     params = glow.nn.chainer.invertible_1x1_conv.LUParameters(
+    #     params = glow.nn.invertible_1x1_conv.LUParameters(
     #         channels=channels_x)
     #     params.to_gpu()
-    #     conv_1x1 = glow.nn.chainer.invertible_1x1_conv.LUInvertible1x1Conv(
+    #     conv_1x1 = glow.nn.invertible_1x1_conv.LUInvertible1x1Conv(
     #         params)
     #     rev_conv_1x1 = conv_1x1.reverse_copy()
     #     layers.append((conv_1x1, rev_conv_1x1))
@@ -102,7 +102,7 @@ def check_layer():
     # print("lu_1x1:", error)
 
     # affine coupling layer
-    params = glow.nn.chainer.additive_coupling.Parameters(
+    params = glow.nn.additive_coupling.Parameters(
         channels_x=channels_x // 2, channels_h=128)
     params.to_gpu()
     params.conv_1(x[:, 0::2])
@@ -114,9 +114,9 @@ def check_layer():
         -1.0, 1.0, size=params.conv_3.W.data.shape).astype("float32")
     params.scale.data = xp.random.uniform(
         -1.0, 1.0, size=params.scale.data.shape).astype("float32")
-    nonlinear_mapping = glow.nn.chainer.additive_coupling.NonlinearMapping(
+    nonlinear_mapping = glow.nn.additive_coupling.NonlinearMapping(
         params)
-    coupling_layer = glow.nn.chainer.additive_coupling.AdditiveCoupling(
+    coupling_layer = glow.nn.additive_coupling.AdditiveCoupling(
         nn=nonlinear_mapping)
     rev_coupling_layer = coupling_layer.reverse_copy()
 
@@ -183,8 +183,8 @@ def check_squeeze():
     factor = 2
     shape = (1, 3, 256, 256)
     x = xp.arange(0, np.prod(shape)).reshape(shape)
-    y = glow.nn.chainer.functions.squeeze(x, factor=factor, module=xp)
-    _x = glow.nn.chainer.functions.unsqueeze(y, factor=factor, module=xp)
+    y = glow.nn.functions.squeeze(x, factor=factor, module=xp)
+    _x = glow.nn.functions.unsqueeze(y, factor=factor, module=xp)
     print(xp.mean(xp.abs(x - _x)))
 
 

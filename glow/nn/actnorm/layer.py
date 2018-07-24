@@ -1,11 +1,10 @@
 from chainer.backends import cuda
 import chainer.functions as cf
 
-from ... import base
 from .parameters import Parameters
 
 
-class Actnorm(base.Actnorm):
+class Actnorm(object):
     def __init__(self, params: Parameters):
         self.params = params
         self.bias = self.params.bias
@@ -29,7 +28,7 @@ class Actnorm(base.Actnorm):
         return ReverseActnorm(params)
 
 
-class ReverseActnorm(base.ReverseActnorm):
+class ReverseActnorm(object):
     def __init__(self, params: Parameters):
         self.params = params
         self.bias = self.params.bias

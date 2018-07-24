@@ -60,7 +60,7 @@ def merge_factorized_z(factorized_z, factor=2):
     for zi in reversed(factorized_z):
         xp = cuda.get_array_module(zi.data)
         z = zi.data if z is None else xp.concatenate((zi.data, z), axis=1)
-        z = glow.nn.chainer.functions.unsqueeze(z, factor, xp)
+        z = glow.nn.functions.unsqueeze(z, factor, xp)
     return z
 
 
@@ -154,6 +154,7 @@ def main():
 
     optimizer = Optimizer(encoder.params)
 
+
     # Data dependent initialization
     if encoder.need_initialize:
         for batch_index, data_indices in enumerate(iterator):
@@ -183,6 +184,7 @@ def main():
             negative_log_likelihood = 0
             for (zi, mean, ln_var) in factorized_z_distribution:
                 negative_log_likelihood += cf.gaussian_nll(zi, mean, ln_var)
+                # negative_log_likelihood += glow.nn.functions.standard_normal_nll(zi)
 
             loss = (negative_log_likelihood / args.batch_size - logdet) / denom
 

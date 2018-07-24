@@ -1,11 +1,10 @@
 from chainer.backends import cuda
 import chainer.functions as cf
 
-from ... import base
 from .parameters import Parameters
 
 
-class NonlinearMapping(base.NonlinearMapping):
+class NonlinearMapping(object):
     def __init__(self, params: Parameters):
         self.params = params
 
@@ -20,7 +19,7 @@ class NonlinearMapping(base.NonlinearMapping):
         return bias
 
 
-class AdditiveCoupling(base.AdditiveCoupling):
+class AdditiveCoupling(object):
     def __init__(self, nn: NonlinearMapping):
         self.nn = nn
 
@@ -43,7 +42,7 @@ class AdditiveCoupling(base.AdditiveCoupling):
         return ReverseAdditiveCoupling(nn)
 
 
-class ReverseAdditiveCoupling(base.ReverseAdditiveCoupling):
+class ReverseAdditiveCoupling(object):
     def __init__(self, nn: NonlinearMapping):
         self.nn = nn
 

@@ -1,11 +1,10 @@
 from chainer.backends import cuda
 import chainer.functions as cf
 
-from ... import base
 from .parameters import Parameters
 
 
-class Conv2dZeros(base.Conv2dZeros):
+class Conv2dZeros(object):
     def __init__(self, params: Parameters):
         self.params = params
 

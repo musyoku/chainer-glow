@@ -12,7 +12,7 @@ from chainer.backends import cuda
 sys.path.append("..")
 import glow
 
-from glow.nn.chainer.functions import squeeze, unsqueeze
+from glow.nn.functions import squeeze, unsqueeze
 from hyperparams import Hyperparameters
 
 
@@ -125,9 +125,9 @@ class Block(object):
 
         channels_in = channels_x // 2 if split_output else channels_x
         channels_out = channels_x if split_output else channels_x * 2
-        prior_params = glow.nn.chainer.conv2d_zeros.Parameters(
+        prior_params = glow.nn.conv2d_zeros.Parameters(
             channels_in=channels_in, channels_out=channels_out)
-        self.prior = glow.nn.chainer.conv2d_zeros.Conv2dZeros(prior_params)
+        self.prior = glow.nn.conv2d_zeros.Conv2dZeros(prior_params)
 
         with self.params.init_scope():
             for flow in flows:
@@ -153,7 +153,6 @@ class Block(object):
         else:
             zi = out
             out = None
-            xp = cuda.get_array_module(zi)
             prior_in = zeros_like(zi)
 
         z_distritubion = self.prior(prior_in)
@@ -167,7 +166,6 @@ class Block(object):
                      squeeze_factor,
                      reduce_memory=False):
         sum_logdet = 0
-        xp = cuda.get_array_module(gaussian_eps)
 
         if self.split_output:
             z_distritubion = self.prior(out)
@@ -248,36 +246,35 @@ class InferenceModel():
                 flows = []
 
                 for _ in range(hyperparams.depth_per_level):
-                    params = glow.nn.chainer.actnorm.Parameters(
-                        channels=channels_x)
-                    actnorm = glow.nn.chainer.actnorm.Actnorm(params)
+                    params = glow.nn.actnorm.Parameters(channels=channels_x)
+                    actnorm = glow.nn.actnorm.Actnorm(params)
 
                     if hyperparams.lu_decomposition:
-                        params = glow.nn.chainer.invertible_1x1_conv.LUParameters(
+                        params = glow.nn.invertible_1x1_conv.LUParameters(
                             channels=channels_x)
-                        conv_1x1 = glow.nn.chainer.invertible_1x1_conv.LUInvertible1x1Conv(
+                        conv_1x1 = glow.nn.invertible_1x1_conv.LUInvertible1x1Conv(
                             params)
                     else:
-                        params = glow.nn.chainer.invertible_1x1_conv.Parameters(
+                        params = glow.nn.invertible_1x1_conv.Parameters(
                             channels=channels_x)
-                        conv_1x1 = glow.nn.chainer.invertible_1x1_conv.Invertible1x1Conv(
+                        conv_1x1 = glow.nn.invertible_1x1_conv.Invertible1x1Conv(
                             params)
 
                     if coupling == "additive":
-                        params = glow.nn.chainer.additive_coupling.Parameters(
+                        params = glow.nn.additive_coupling.Parameters(
                             channels_x=channels_x // 2,
                             channels_h=hyperparams.nn_hidden_channels)
-                        nonlinear_mapping = glow.nn.chainer.additive_coupling.NonlinearMapping(
+                        nonlinear_mapping = glow.nn.additive_coupling.NonlinearMapping(
                             params)  # NN
-                        coupling_layer = glow.nn.chainer.additive_coupling.AdditiveCoupling(
+                        coupling_layer = glow.nn.additive_coupling.AdditiveCoupling(
                             nn=nonlinear_mapping)
                     elif coupling == "affine":
-                        params = glow.nn.chainer.affine_coupling.Parameters(
+                        params = glow.nn.affine_coupling.Parameters(
                             channels_x=channels_x // 2,
                             channels_h=hyperparams.nn_hidden_channels)
-                        nonlinear_mapping = glow.nn.chainer.affine_coupling.NonlinearMapping(
+                        nonlinear_mapping = glow.nn.affine_coupling.NonlinearMapping(
                             params)  # NN
-                        coupling_layer = glow.nn.chainer.affine_coupling.AffineCoupling(
+                        coupling_layer = glow.nn.affine_coupling.AffineCoupling(
                             nn=nonlinear_mapping)
                     else:
                         raise NotImplementedError

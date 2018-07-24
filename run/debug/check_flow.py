@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.append(os.path.join("..", ".."))
 import glow
 
-from glow.nn.chainer.functions import squeeze, unsqueeze
+from glow.nn.functions import squeeze, unsqueeze
 
 sys.path.append("..")
 from model import InferenceModel, GenerativeModel, to_cpu, to_gpu
