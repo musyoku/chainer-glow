@@ -31,6 +31,12 @@ pip3 install tabulate
 # Dataset
 ## CelebA HQ
 
+[celeba-32x32-images-npy.zip](https://drive.google.com/open?id=1HnaTektDZGwyjRwv08wBejVPsMTiSu1t)
+
+[celeba-64x64-images-npy.zip](https://drive.google.com/open?id=14XkuMovCGdJp2Nz6RLs85irM0_a7PKnE)
+
+[celeba-128x128-images-npy.zip](https://drive.google.com/open?id=197IFPFaj-HS0KEOZS56ycQP-Sz3b3_m1)
+
 # Results
 
 ![https://thumbs.gfycat.com/MealyBewitchedIcelandgull-size_restricted.gif](https://thumbs.gfycat.com/MealyBewitchedIcelandgull-size_restricted.gif)
