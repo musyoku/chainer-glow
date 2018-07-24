@@ -176,7 +176,12 @@ def main():
 
             negative_log_likelihood = 0
             for (zi, mean, ln_var) in factorized_z_distribution:
-                negative_log_likelihood += cf.gaussian_nll(zi, mean, ln_var)
+                if args.learn_z_parameters:
+                    negative_log_likelihood += cf.gaussian_nll(
+                        zi, mean, ln_var)
+                else:
+                    negative_log_likelihood += glow.nn.functions.standard_normal_nll(
+                        zi)
 
             loss = (negative_log_likelihood / batch_size - logdet) / denom
 
