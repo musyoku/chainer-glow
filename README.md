@@ -38,4 +38,8 @@ pip3 install tabulate
 
 # Results
 
+```
+python3 run/train.py -dataset /home/user/dataset/celeba-64x64-images-npy/ -b 4 -depth 32 -levels 4 -nn 512 -bits 5 -ext npy -learn-z
+```
+
 ![https://thumbs.gfycat.com/MealyBewitchedIcelandgull-size_restricted.gif](https://thumbs.gfycat.com/MealyBewitchedIcelandgull-size_restricted.gif)
