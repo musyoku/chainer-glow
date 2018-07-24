@@ -53,8 +53,7 @@ def check_layer():
     layers = []
     size = 4 * 32
     for _ in range(size):
-        params = glow.nn.invertible_1x1_conv.Parameters(
-            channels=channels_x)
+        params = glow.nn.invertible_1x1_conv.Parameters(channels=channels_x)
         params.to_gpu()
 
         shape = params.conv.W.data.shape[:2]
@@ -62,8 +61,7 @@ def check_layer():
         #     -1.0, 1.0, size=shape).astype("float32").reshape(shape + (1, 1))
         # params.conv.W.data += noise
 
-        conv_1x1 = glow.nn.invertible_1x1_conv.Invertible1x1Conv(
-            params)
+        conv_1x1 = glow.nn.invertible_1x1_conv.Invertible1x1Conv(params)
         rev_conv_1x1 = conv_1x1.reverse_copy()
         layers.append((conv_1x1, rev_conv_1x1))
 
@@ -114,8 +112,7 @@ def check_layer():
         -1.0, 1.0, size=params.conv_3.W.data.shape).astype("float32")
     params.scale.data = xp.random.uniform(
         -1.0, 1.0, size=params.scale.data.shape).astype("float32")
-    nonlinear_mapping = glow.nn.additive_coupling.NonlinearMapping(
-        params)
+    nonlinear_mapping = glow.nn.additive_coupling.NonlinearMapping(params)
     coupling_layer = glow.nn.additive_coupling.AdditiveCoupling(
         nn=nonlinear_mapping)
     rev_coupling_layer = coupling_layer.reverse_copy()
@@ -172,7 +169,10 @@ def check_model():
 
     decoder = encoder.reverse()
 
-    factorized_z, logdet = encoder(x)
+    factorized_z_distribution, logdet = encoder(x)
+    factorized_z = []
+    for (zi, mean, ln_var) in factorized_z_distribution:
+        factorized_z.append(zi)
     rev_x, rev_logdet = decoder(factorized_z)
     error = cf.mean(abs(x - rev_x))
     print(logdet, rev_logdet)
@@ -190,9 +190,9 @@ def check_squeeze():
 
 def main():
     with chainer.no_backprop_mode():
+        check_model()
         check_squeeze()
         check_layer()
-        check_model()
 
 
 if __name__ == "__main__":
