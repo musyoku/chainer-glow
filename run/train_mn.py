@@ -131,7 +131,6 @@ def main():
     hyperparams.lu_decomposition = args.lu_decomposition
     hyperparams.learn_z_parameters = args.learn_z_parameters
     hyperparams.serialize(args.snapshot_path)
-    hyperparams.print()
 
     if comm.rank == 0:
         hyperparams.serialize(args.snapshot_path)
