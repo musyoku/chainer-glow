@@ -33,4 +33,4 @@ pip3 install tabulate
 
 # Results
 
-[https://thumbs.gfycat.com/MealyBewitchedIcelandgull-size_restricted.gif](https://thumbs.gfycat.com/MealyBewitchedIcelandgull-size_restricted.gif)
+![https://thumbs.gfycat.com/MealyBewitchedIcelandgull-size_restricted.gif](https://thumbs.gfycat.com/MealyBewitchedIcelandgull-size_restricted.gif)
