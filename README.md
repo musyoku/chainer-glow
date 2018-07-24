@@ -29,6 +29,11 @@ pip3 install tabulate
 ```
 
 # Dataset
+## CelebA HQ
+
+[http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html](http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html)
+
+[https://github.com/nperraud/download-celebA-HQ](https://github.com/nperraud/download-celebA-HQ)
 
 # Results
 
