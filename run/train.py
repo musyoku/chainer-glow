@@ -165,7 +165,7 @@ def main():
     num_pixels = 3 * hyperparams.image_size[0] * hyperparams.image_size[1]
 
     # Training loop
-    for iteration in range(args.training_steps):
+    for iteration in range(args.total_iteration):
         sum_loss = 0
         start_time = time.time()
 
@@ -249,7 +249,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", "-b", type=int, default=32)
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
     parser.add_argument("--reduce-memory", action="store_true")
-    parser.add_argument("--training-steps", "-i", type=int, default=100000)
+    parser.add_argument("--total-iteration", "-i", type=int, default=1000)
     parser.add_argument("--depth-per-level", "-depth", type=int, default=32)
     parser.add_argument("--levels", "-levels", type=int, default=5)
     parser.add_argument("--nn-hidden-channels", "-nn", type=int, default=512)

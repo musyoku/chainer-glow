@@ -113,8 +113,12 @@ def main():
             for data_indices in iterator:
                 x = to_gpu(dataset[data_indices])
                 x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
-                factorized_z, _ = encoder(x)
+                factorized_z_distribution, _ = encoder(x)
 
+                factorized_z = []
+                for (zi, mean, ln_var) in factorized_z_distribution:
+                    factorized_z.append(zi)
+                    
                 # for zi in factorized_z:
                 #     noise = xp.random.normal(
                 #         0, 0.2, size=zi.shape).astype("float32")
