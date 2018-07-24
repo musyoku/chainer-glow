@@ -107,7 +107,7 @@ class Flow(object):
         yield self.conv_1x1
         yield self.coupling_layer
 
-    def reverse(self):
+    def reverse_copy(self):
         rev_actnorm = self.actnorm.reverse_copy()
         rev_conv_1x1 = self.conv_1x1.reverse_copy()
         rev_coupling_layer = self.coupling_layer.reverse_copy()
@@ -116,18 +116,23 @@ class Flow(object):
 
 
 class Block(object):
-    def __init__(self, flows, channels_x, split_output=False, reverse=False):
+    def __init__(self,
+                 flows,
+                 prior,
+                 channels_x,
+                 split_output=False,
+                 learn_z_parameters=False,
+                 reverse=False):
+        assert isinstance(flows, list)
+        assert isinstance(prior, glow.nn.conv2d_zeros.Conv2dZeros)
+
         self.flows = flows
+        self.prior = prior
         self.params = chainer.ChainList()
         self.channels_x = channels_x
         self.split_output = split_output
+        self.learn_z_parameters = learn_z_parameters
         self.is_reversed = reverse
-
-        channels_in = channels_x // 2 if split_output else channels_x
-        channels_out = channels_x if split_output else channels_x * 2
-        prior_params = glow.nn.conv2d_zeros.Parameters(
-            channels_in=channels_in, channels_out=channels_out)
-        self.prior = glow.nn.conv2d_zeros.Conv2dZeros(prior_params)
 
         with self.params.init_scope():
             for flow in flows:
@@ -147,16 +152,25 @@ class Block(object):
             out, logdet = flow(out, reduce_memory=reduce_memory)
             sum_logdet += logdet
 
-        if self.split_output:
-            zi, out = split_channel(out)
-            prior_in = out
-        else:
-            zi = out
-            out = None
-            prior_in = zeros_like(zi)
+        if self.learn_z_parameters:
+            if self.split_output:
+                zi, out = split_channel(out)
+                prior_in = out
+            else:
+                zi = out
+                out = None
+                prior_in = zeros_like(zi)
 
-        z_distritubion = self.prior(prior_in)
-        mean, ln_var = split_channel(z_distritubion)
+            z_distritubion = self.prior(prior_in)
+            mean, ln_var = split_channel(z_distritubion)
+        else:
+            if self.split_output:
+                zi, out = split_channel(out)
+            else:
+                zi = out
+                out = None
+            mean = None
+            ln_var = None
 
         return out, (zi, mean, ln_var), sum_logdet
 
@@ -167,16 +181,23 @@ class Block(object):
                      reduce_memory=False):
         sum_logdet = 0
 
-        if self.split_output:
-            z_distritubion = self.prior(out)
-            mean, ln_var = split_channel(z_distritubion)
-            zi = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
-            out = cf.concat((zi, out), axis=1)
+        if self.learn_z_parameters:
+            if self.split_output:
+                z_distritubion = self.prior(out)
+                mean, ln_var = split_channel(z_distritubion)
+                zi = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
+                out = cf.concat((zi, out), axis=1)
+            else:
+                zeros = zeros_like(gaussian_eps)
+                z_distritubion = self.prior(zeros)
+                mean, ln_var = split_channel(z_distritubion)
+                out = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
         else:
-            zeros = zeros_like(gaussian_eps)
-            z_distritubion = self.prior(zeros)
-            mean, ln_var = split_channel(z_distritubion)
-            out = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
+            if self.split_output:
+                zi = gaussian_eps
+                out = cf.concat((zi, out), axis=1)
+            else:
+                out = gaussian_eps
 
         for flow in self.flows:
             out, logdet = flow(out, reduce_memory=reduce_memory)
@@ -201,20 +222,22 @@ class Block(object):
             return self.forward_step(
                 x, squeeze_factor=squeeze_factor, reduce_memory=reduce_memory)
 
-    def reverse(self):
+    def reverse_copy(self):
         flows = []
         for flow in self.flows:
-            rev_flow = flow.reverse()
+            rev_flow = flow.reverse_copy()
             flows.append(rev_flow)
         flows.reverse()
+
+        params = self.prior.params.reverse_copy()
+        prior = glow.nn.conv2d_zeros.Conv2dZeros(params)
+
         copy = Block(
             flows,
+            prior,
             channels_x=self.channels_x,
             split_output=self.split_output,
             reverse=True)
-        if self.params.xp is not np:
-            copy.params.to_gpu()
-        copy.prior.params.conv.W.data[...] = self.prior.params.conv.W.data
         return copy
 
 
@@ -282,8 +305,19 @@ class InferenceModel():
                     flows.append(Flow(actnorm, conv_1x1, coupling_layer))
 
                 split_output = False if level == hyperparams.levels - 1 else True
+
+                channels_in = channels_x // 2 if split_output else channels_x
+                channels_out = channels_x if split_output else channels_x * 2
+                params = glow.nn.conv2d_zeros.Parameters(
+                    channels_in=channels_in, channels_out=channels_out)
+                prior = glow.nn.conv2d_zeros.Conv2dZeros(params)
+
                 block = Block(
-                    flows, channels_x=channels_x, split_output=split_output)
+                    flows,
+                    prior,
+                    channels_x=channels_x,
+                    learn_z_parameters=hyperparams.learn_z_parameters,
+                    split_output=split_output)
                 self.blocks.append(block)
                 self.params.append(block.params)
 
@@ -366,7 +400,7 @@ class GenerativeModel():
 
         with self.params.init_scope():
             for block in source.blocks:
-                rev_block = block.reverse()
+                rev_block = block.reverse_copy()
                 self.blocks.append(rev_block)
                 self.params.append(rev_block.params)
 

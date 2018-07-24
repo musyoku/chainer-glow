@@ -136,24 +136,15 @@ def main():
     hyperparams.image_size = images.shape[2:]
     hyperparams.num_bits_x = args.num_bits_x
     hyperparams.lu_decomposition = args.lu_decomposition
+    hyperparams.learn_z_parameters = args.learn_z_parameters
     hyperparams.serialize(args.snapshot_path)
-
-    print(
-        tabulate([
-            ["levels", hyperparams.levels],
-            ["depth_per_level", hyperparams.depth_per_level],
-            ["nn_hidden_channels", hyperparams.nn_hidden_channels],
-            ["image_size", hyperparams.image_size],
-            ["lu_decomposition", hyperparams.lu_decomposition],
-            ["num_bits_x", hyperparams.num_bits_x],
-        ]))
+    hyperparams.print()
 
     encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
     if using_gpu:
         encoder.to_gpu()
 
     optimizer = Optimizer(encoder.params)
-
 
     # Data dependent initialization
     if encoder.need_initialize:
@@ -183,8 +174,12 @@ def main():
 
             negative_log_likelihood = 0
             for (zi, mean, ln_var) in factorized_z_distribution:
-                negative_log_likelihood += cf.gaussian_nll(zi, mean, ln_var)
-                # negative_log_likelihood += glow.nn.functions.standard_normal_nll(zi)
+                if args.learn_z_parameters:
+                    negative_log_likelihood += cf.gaussian_nll(
+                        zi, mean, ln_var)
+                else:
+                    negative_log_likelihood += glow.nn.functions.standard_normal_nll(
+                        zi)
 
             loss = (negative_log_likelihood / args.batch_size - logdet) / denom
 
@@ -257,5 +252,7 @@ if __name__ == "__main__":
     parser.add_argument("--nn-hidden-channels", "-nn", type=int, default=512)
     parser.add_argument("--num-bits-x", "-bits", type=int, default=8)
     parser.add_argument("--lu-decomposition", "-lu", action="store_true")
+    parser.add_argument(
+        "--learn-z-parameters", "-learn-z", action="store_true")
     args = parser.parse_args()
     main()

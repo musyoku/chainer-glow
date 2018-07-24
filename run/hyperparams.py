@@ -1,5 +1,6 @@
 import json
 import os
+from tabulate import tabulate
 
 
 class Hyperparameters():
@@ -11,6 +12,7 @@ class Hyperparameters():
         self.nn_hidden_channels = 512
         self.image_size = (256, 256)
         self.lu_decomposition = False
+        self.learn_z_parameters = False
 
         if path is not None:
             json_path = os.path.join(path, self.params_filename)
@@ -37,7 +39,20 @@ class Hyperparameters():
                     "num_bits_x": self.num_bits_x,
                     "image_size": self.image_size,
                     "lu_decomposition": self.lu_decomposition,
+                    "learn_z_parameters": self.learn_z_parameters,
                 },
                 f,
                 indent=4,
                 sort_keys=True)
+
+    def print(self):
+        print(
+            tabulate([
+                ["levels", self.levels],
+                ["depth_per_level", self.depth_per_level],
+                ["nn_hidden_channels", self.nn_hidden_channels],
+                ["image_size", self.image_size],
+                ["lu_decomposition", self.lu_decomposition],
+                ["learn_z_parameters", self.learn_z_parameters],
+                ["num_bits_x", self.num_bits_x],
+            ]))

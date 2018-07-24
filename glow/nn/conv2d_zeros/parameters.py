@@ -22,7 +22,7 @@ class Parameters(chainer.Chain):
                 initializer=np.zeros((1, channels_out, 1, 1), dtype="float32"))
 
     def reverse_copy(self):
-        copy = Parameters(self.channels_out, self.channels_in)
+        copy = Parameters(self.channels_in, self.channels_out)
         if self.xp is not np:
             copy.to_gpu()
         copy.conv.W.data[...] = self.conv.W.data

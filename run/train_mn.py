@@ -129,19 +129,13 @@ def main():
     hyperparams.image_size = (args.image_size, args.image_size)
     hyperparams.num_bits_x = args.num_bits_x
     hyperparams.lu_decomposition = args.lu_decomposition
-    if comm.rank == 0:
-        hyperparams.serialize(args.snapshot_path)
+    hyperparams.learn_z_parameters = args.learn_z_parameters
+    hyperparams.serialize(args.snapshot_path)
+    hyperparams.print()
 
     if comm.rank == 0:
-        print(
-            tabulate([
-                ["levels", hyperparams.levels],
-                ["depth_per_level", hyperparams.depth_per_level],
-                ["nn_hidden_channels", hyperparams.nn_hidden_channels],
-                ["image_size", hyperparams.image_size],
-                ["lu_decomposition", hyperparams.lu_decomposition],
-                ["num_bits_x", hyperparams.num_bits_x],
-            ]))
+        hyperparams.serialize(args.snapshot_path)
+        hyperparams.print()
 
     encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
     encoder.to_gpu()
@@ -251,5 +245,7 @@ if __name__ == "__main__":
     parser.add_argument("--num-bits-x", "-bits", type=int, default=8)
     parser.add_argument("--lu-decomposition", "-lu", action="store_true")
     parser.add_argument("--image-size", type=int, required=True)
+    parser.add_argument(
+        "--learn-z-parameters", "-learn-z", action="store_true")
     args = parser.parse_args()
     main()
