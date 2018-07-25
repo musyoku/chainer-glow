@@ -207,11 +207,11 @@ def main():
         if True:
             with chainer.no_backprop_mode():
                 with encoder.reverse() as decoder:
-                    factorized_z_distribution, logdet = encoder(x)
+                    factorized_z_distribution, logdet = encoder.forward_step(x)
                     factorized_z = []
                     for (zi, mean, ln_var) in factorized_z_distribution:
                         factorized_z.append(zi)
-                    rev_x, _ = decoder(factorized_z)
+                    rev_x, _ = decoder.reverse_step(factorized_z)
                     rev_x_mean = float(xp.mean(rev_x.data))
                     rev_x_var = float(xp.var(rev_x.data))
 
