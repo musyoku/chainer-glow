@@ -20,7 +20,7 @@ sys.path.append("..")
 import glow
 
 from hyperparams import Hyperparameters
-from model import InferenceModel, GenerativeModel
+from model import Glow
 from optimizer import Optimizer
 
 
@@ -120,8 +120,8 @@ def main():
     x_mean = np.mean(images)
     x_var = np.var(images)
 
-    dataset = glow.dataset.png.Dataset(images)
-    iterator = glow.dataset.png.Iterator(dataset, batch_size=args.batch_size)
+    dataset = glow.dataset.Dataset(images)
+    iterator = glow.dataset.Iterator(dataset, batch_size=args.batch_size)
 
     print(tabulate([
         ["#", len(dataset)],
@@ -140,7 +140,7 @@ def main():
     hyperparams.serialize(args.snapshot_path)
     hyperparams.print()
 
-    encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
+    encoder = Glow(hyperparams, hdf5_path=args.snapshot_path)
     if using_gpu:
         encoder.to_gpu()
 
@@ -167,7 +167,7 @@ def main():
 
             denom = math.log(2.0) * num_pixels
 
-            factorized_z_distribution, logdet = encoder(
+            factorized_z_distribution, logdet = encoder.forward_step(
                 x, reduce_memory=args.reduce_memory)
 
             logdet -= math.log(num_bins_x) * num_pixels
@@ -215,19 +215,19 @@ def main():
         z_var = None
         if True:
             with chainer.no_backprop_mode():
-                decoder = encoder.reverse()
-                factorized_z_distribution, logdet = encoder(x)
-                factorized_z = []
-                for (zi, mean, ln_var) in factorized_z_distribution:
-                    factorized_z.append(zi)
-                rev_x, _ = decoder(factorized_z)
+                with encoder.reverse() as decoder:
+                    factorized_z_distribution, logdet = encoder(x)
+                    factorized_z = []
+                    for (zi, mean, ln_var) in factorized_z_distribution:
+                        factorized_z.append(zi)
+                    rev_x, _ = decoder.reverse_step(factorized_z)
 
-                rev_x_mean = float(xp.mean(rev_x.data))
-                rev_x_var = float(xp.var(rev_x.data))
+                    rev_x_mean = float(xp.mean(rev_x.data))
+                    rev_x_var = float(xp.var(rev_x.data))
 
-                z = merge_factorized_z(factorized_z)
-                z_mean = float(xp.mean(z))
-                z_var = float(xp.var(z))
+                    z = merge_factorized_z(factorized_z)
+                    z_mean = float(xp.mean(z))
+                    z_var = float(xp.var(z))
 
         elapsed_time = time.time() - start_time
         print(

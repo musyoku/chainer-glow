@@ -15,7 +15,7 @@ sys.path.append(os.path.join("..", ".."))
 import glow
 
 sys.path.append("..")
-from model import Glow, to_cpu
+from model import InferenceModel, GenerativeModel, to_cpu
 from hyperparams import Hyperparameters
 
 
@@ -44,31 +44,45 @@ def main():
 
     num_bins_x = 2.0**hyperparams.num_bits_x
 
-    encoder = Glow(hyperparams, hdf5_path=args.snapshot_path)
+    encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
+    decoder = encoder.reverse()
 
     if using_gpu:
         encoder.to_gpu()
+        decoder.to_gpu()
 
-    with encoder.reverse() as decoder:
+    temperatures = [0.0, 0.25, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    total = len(temperatures)
+    fig = plt.figure(figsize=(total * 4, 4))
+    subplots = []
+    for n in range(total):
+        subplot = fig.add_subplot(1, total, n + 1)
+        subplots.append(subplot)
+
+    with chainer.no_backprop_mode():
         while True:
-            z = xp.random.normal(
-                0, args.temperature, size=(
-                    1,
-                    3,
-                ) + hyperparams.image_size).astype("float32")
-
-            with chainer.no_backprop_mode():
-                x, _ = decoder.reverse_step(z)
-                x_img = make_uint8(x.data[0], num_bins_x)
-                plt.imshow(x_img, interpolation="none")
-                plt.pause(.01)
+            z_batch = []
+            for temperature in temperatures:
+                z = np.random.normal(
+                    0, temperature, size=(
+                        3,
+                    ) + hyperparams.image_size).astype("float32")
+                z_batch.append(z)
+            z_batch = np.asanyarray(z_batch)
+            if using_gpu:
+                z_batch = cuda.to_gpu(z_batch)
+            x, _ = decoder(z_batch)
+            for n, (temperature, subplot) in enumerate(zip(temperatures, subplots)):
+                x_img = make_uint8(x.data[n], num_bins_x)
+                subplot.imshow(x_img, interpolation="none")
+                subplot.set_title("temperature={}".format(temperature))
+            plt.pause(.01)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--snapshot-path", "-snapshot", type=str, required=True)
-    parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
     args = parser.parse_args()
     main()

@@ -1,10 +1,12 @@
 import chainer
+import chainer.functions as cf
 import chainer.links as L
 import numpy as np
-from chainer.initializers import Zero, HeNormal
+from chainer.backends import cuda
+from chainer.initializers import HeNormal, Zero
 
 
-class Parameters(chainer.Chain):
+class Conv2dZeros(chainer.Chain):
     def __init__(self, channels_in, channels_out):
         super().__init__()
         self.channels_in = channels_in
@@ -21,11 +23,9 @@ class Parameters(chainer.Chain):
             self.scale = chainer.Parameter(
                 initializer=np.zeros((1, channels_out, 1, 1), dtype="float32"))
 
-    def reverse_copy(self):
-        copy = Parameters(self.channels_in, self.channels_out)
-        if self.xp is not np:
-            copy.to_gpu()
-        copy.conv.W.data[...] = self.conv.W.data
-        copy.conv.b.data[...] = self.conv.b.data
-        copy.scale.data[...] = self.scale.data
-        return copy
+    def __call__(self, x):
+        out = x
+        out = self.conv(out)
+        bias = out * cf.broadcast_to((cf.exp(self.scale * 3.0)), out.shape)
+        # bias = out
+        return bias

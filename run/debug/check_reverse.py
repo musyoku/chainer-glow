@@ -11,7 +11,7 @@ sys.path.append(os.path.join("..", ".."))
 import glow
 
 sys.path.append("..")
-from model import InferenceModel, GenerativeModel
+from model import Glow
 from hyperparams import Hyperparameters
 
 
@@ -139,7 +139,7 @@ def check_model():
     hyperparams.levels = levels
     hyperparams.nn_hidden_channels = 32
 
-    encoder = InferenceModel(hyperparams)
+    encoder = Glow(hyperparams)
     encoder.to_gpu()
 
     for level in range(levels):
@@ -167,16 +167,15 @@ def check_model():
             params.scale.data = xp.zeros(
                 params.scale.data.shape, dtype="float32")
 
-    decoder = encoder.reverse()
-
-    factorized_z_distribution, logdet = encoder(x)
-    factorized_z = []
-    for (zi, mean, ln_var) in factorized_z_distribution:
-        factorized_z.append(zi)
-    rev_x, rev_logdet = decoder(factorized_z)
-    error = cf.mean(abs(x - rev_x))
-    print(logdet, rev_logdet)
-    print(error)
+    with encoder.reverse() as decoder:
+        factorized_z_distribution, logdet = encoder.forward_step(x)
+        factorized_z = []
+        for (zi, mean, ln_var) in factorized_z_distribution:
+            factorized_z.append(zi)
+        rev_x, rev_logdet = decoder.reverse_step(factorized_z)
+        error = cf.mean(abs(x - rev_x))
+        print(logdet, rev_logdet)
+        print(error)
 
 
 def check_squeeze():
