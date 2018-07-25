@@ -194,7 +194,7 @@ def main():
                     denom,
                     float(logdet.data) / denom))
 
-            if batch_index % 100 == 0:
+            if (batch_index + 1) % 100 == 0:
                 encoder.save(args.snapshot_path)
 
         # Check model reversibility
