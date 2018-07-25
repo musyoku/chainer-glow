@@ -159,6 +159,7 @@ def main():
     # Training loop
     for iteration in range(args.total_iteration):
         sum_loss = 0
+        sum_nll = 0
         start_time = time.time()
 
         for batch_index, data_indices in enumerate(iterator):
@@ -185,6 +186,7 @@ def main():
             current_training_step += 1
 
             sum_loss += float(loss.data)
+            sum_nll += float(negative_log_likelihood.data) / args.batch_size
             printr(
                 "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - log_det: {:.8f}".
                 format(
@@ -197,26 +199,12 @@ def main():
             if (batch_index + 1) % 100 == 0:
                 encoder.save(args.snapshot_path)
 
-        # Check model reversibility
-        with chainer.no_backprop_mode() and encoder.reverse() as decoder:
-            factorized_z_distribution, logdet = encoder.forward_step(x)
-            factorized_z = []
-            for (zi, mean, ln_var) in factorized_z_distribution:
-                factorized_z.append(zi)
-            rev_x, _ = decoder.reverse_step(factorized_z)
-
-            rev_x_mean = float(xp.mean(rev_x.data))
-            rev_x_var = float(xp.var(rev_x.data))
-
-            z = merge_factorized_z(factorized_z)
-            z_mean = float(xp.mean(z))
-            z_var = float(xp.var(z))
-
+        log_likelihood = -sum_nll / len(iterator)
         elapsed_time = time.time() - start_time
         print(
-            "\033[2KIteration {} - loss: {:.5f} - z: mean={:.5f} var={:.5f} - rev_x: mean={:.5f} var={:.5f} - elapsed_time: {:.3f} min".
-            format(iteration + 1, sum_loss / len(iterator), z_mean, z_var,
-                   rev_x_mean, rev_x_var, elapsed_time / 60))
+            "\033[2KIteration {} - loss: {:.5f} - log_likelihood: {:.5f} - elapsed_time: {:.3f} min".
+            format(iteration + 1, sum_loss / len(iterator), log_likelihood,
+                   elapsed_time / 60))
         encoder.save(args.snapshot_path)
 
 
