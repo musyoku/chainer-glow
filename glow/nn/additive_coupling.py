@@ -64,7 +64,8 @@ class AdditiveCoupling(chainer.Chain):
         yb = xb + bias
         y = cf.concat((ya, yb), axis=1)
 
-        return y, 0
+        xp = cuda.get_array_module(x)
+        return y, chainer.Variable(xp.array(0.0, dtype="float32"))
 
     def reverse_step(self, y):
         split = y.shape[1] // 2
@@ -77,4 +78,5 @@ class AdditiveCoupling(chainer.Chain):
         xb = yb - bias
         x = cf.concat((xa, xb), axis=1)
 
-        return x, 0
+        xp = cuda.get_array_module(x)
+        return x, chainer.Variable(xp.array(0.0, dtype="float32"))

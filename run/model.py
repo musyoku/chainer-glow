@@ -99,18 +99,13 @@ class Flow(chainer.Chain):
 
 
 class Block(chainer.ChainList):
-    def __init__(self,
-                 flows,
-                 channels_x,
-                 split_output=False,
-                 learn_z_parameters=False):
+    def __init__(self, flows, channels_x, split_output=False):
         super().__init__()
         assert isinstance(flows, list)
 
         self.flows = flows
         self.channels_x = channels_x
         self.split_output = split_output
-        self.learn_z_parameters = learn_z_parameters
 
         channels_in = channels_x // 2 if split_output else channels_x
         channels_out = channels_x if split_output else channels_x * 2
@@ -137,50 +132,34 @@ class Block(chainer.ChainList):
             out, logdet = flow.forward_step(out, reduce_memory=reduce_memory)
             sum_logdet += logdet
 
-        if self.learn_z_parameters:
-            if self.split_output:
-                zi, out = split_channel(out)
-                prior_in = out
-            else:
-                zi = out
-                out = None
-                prior_in = zeros_like(zi)
-
-            z_distritubion = self.prior(prior_in)
-            mean, ln_var = split_channel(z_distritubion)
+        if self.split_output:
+            zi, out = split_channel(out)
+            prior_in = out
         else:
-            if self.split_output:
-                zi, out = split_channel(out)
-            else:
-                zi = out
-                out = None
-            mean = None
-            ln_var = None
+            zi = out
+            out = None
+            prior_in = zeros_like(zi)
+
+        z_distritubion = self.prior(prior_in)
+        mean, ln_var = split_channel(z_distritubion)
 
         return out, (zi, mean, ln_var), sum_logdet
 
     def reverse_step(self, out, gaussian_eps, squeeze_factor):
         sum_logdet = 0
 
-        if self.learn_z_parameters:
-            if self.split_output:
-                z_distritubion = self.prior(out)
-                mean, ln_var = split_channel(z_distritubion)
-                zi = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
-                out = cf.concat((zi, out), axis=1)
-            else:
-                zeros = zeros_like(gaussian_eps)
-                z_distritubion = self.prior(zeros)
-                mean, ln_var = split_channel(z_distritubion)
-                out = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
+        if self.split_output:
+            z_distritubion = self.prior(out)
+            mean, ln_var = split_channel(z_distritubion)
+            zi = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
+            out = cf.concat((zi, out), axis=1)
         else:
-            if self.split_output:
-                zi = gaussian_eps
-                out = cf.concat((zi, out), axis=1)
-            else:
-                out = gaussian_eps
+            zeros = zeros_like(gaussian_eps)
+            z_distritubion = self.prior(zeros)
+            mean, ln_var = split_channel(z_distritubion)
+            out = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
 
-        for flow in self.flows:
+        for flow in self.flows[::-1]:
             out, logdet = flow.reverse_step(out)
             sum_logdet += logdet
 
@@ -244,12 +223,9 @@ class Glow(chainer.ChainList):
             split_output = False if level == hyperparams.levels - 1 else True
 
             block = Block(
-                flows,
-                channels_x=channels_x,
-                learn_z_parameters=hyperparams.learn_z_parameters,
-                split_output=split_output)
+                flows, channels_x=channels_x, split_output=split_output)
             self.blocks.append(block)
-            
+
             # Add parameters to ChainList
             with self.init_scope():
                 self.append(block)
@@ -259,7 +235,7 @@ class Glow(chainer.ChainList):
                 filepath = os.path.join(hdf5_path, self.params_filename)
                 if os.path.exists(filepath) and os.path.isfile(filepath):
                     print("loading {}".format(filepath))
-                    load_hdf5(filepath, self.params)
+                    load_hdf5(filepath, self)
                     self.need_initialize = False
             except Exception as error:
                 print(error)
@@ -271,7 +247,9 @@ class Glow(chainer.ChainList):
 
         for block in self.blocks:
             out, zi_mean_lnvar, logdet = block.forward_step(
-                out, squeeze_factor=self.hyperparams.squeeze_factor)
+                out,
+                squeeze_factor=self.hyperparams.squeeze_factor,
+                reduce_memory=reduce_memory)
             sum_logdet += logdet
             z.append(zi_mean_lnvar)
 
@@ -314,10 +292,10 @@ class Glow(chainer.ChainList):
     def params_filename(self):
         return "model.hdf5"
 
-    def serialize(self, path):
-        self.serialize_parameter(path, self.params_filename, self)
+    def save(self, path):
+        self.save_parameter(path, self.params_filename, self)
 
-    def serialize_parameter(self, path, filename, params):
+    def save_parameter(self, path, filename, params):
         tmp_filename = str(uuid.uuid4())
         tmp_filepath = os.path.join(path, tmp_filename)
         save_hdf5(tmp_filepath, params)
@@ -327,7 +305,7 @@ class Glow(chainer.ChainList):
         return self.blocks[level]
 
     # data dependent initialization
-    def initialize_actnorm_weights(self, x):
+    def initialize_actnorm_weights(self, x, reduce_memory=False):
         xp = cuda.get_array_module(x)
         levels = len(self.blocks)
         out = x
@@ -342,7 +320,7 @@ class Glow(chainer.ChainList):
                 flow.actnorm.scale.data = 1.0 / std
                 flow.actnorm.bias.data = -mean
 
-                out, _ = flow(out)
+                out, _ = flow.forward_step(out, reduce_memory=reduce_memory)
 
             if level < levels - 1:
                 _, out = split_channel(out)

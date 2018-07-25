@@ -27,25 +27,20 @@ def check_layer():
     layers = []
     size = 4 * 32
     for _ in range(size):
-        params = glow.nn.actnorm.Parameters(channels=channels_x)
-        params.to_gpu()
-
-        params.scale.data = xp.random.uniform(
-            -1.0, 1.0, size=params.scale.data.shape).astype("float32")
-        params.bias.data = xp.random.uniform(
-            -1.0, 1.0, size=params.bias.data.shape).astype("float32")
-        actnorm = glow.nn.actnorm.Actnorm(params)
-        rev_actnorm = actnorm.reverse_copy()
-        layers.append((actnorm, rev_actnorm))
+        actnorm = glow.nn.Actnorm(channels=channels_x)
+        actnorm.to_gpu()
+        actnorm.scale.data = xp.random.uniform(
+            -1.0, 1.0, size=actnorm.scale.data.shape).astype("float32")
+        actnorm.bias.data = xp.random.uniform(
+            -1.0, 1.0, size=actnorm.bias.data.shape).astype("float32")
+        layers.append(actnorm)
 
     y = x
-    for k in range(size):
-        actnorm = layers[k][0]
-        y, _ = actnorm(y)
+    for actnorm in layers:
+        y, _ = actnorm.forward_step(y)
     rev_x = y
-    for k in range(size):
-        rev_actnorm = layers[size - k - 1][1]
-        rev_x, _ = rev_actnorm(rev_x)
+    for actnorm in reversed(layers):
+        rev_x, _ = actnorm.reverse_step(rev_x)
     error = cf.mean(abs(x - rev_x))
     print("actnorm:", error)
 
@@ -142,35 +137,37 @@ def check_model():
     encoder = Glow(hyperparams)
     encoder.to_gpu()
 
+    encoder.initialize_actnorm_weights(x)
+
     for level in range(levels):
         for depth in range(depth_per_level):
             actnorm, conv_1x1, coupling_layer = encoder[level][depth]
 
-            params = actnorm.params
-            params.scale.data = xp.random.uniform(
-                -1.0, 1.0, size=params.scale.data.shape).astype("float32")
-            params.bias.data = xp.random.uniform(
-                -1.0, 1.0, size=params.bias.data.shape).astype("float32")
+            actnorm.scale.data = xp.random.uniform(
+                -1.0, 1.0, size=actnorm.scale.data.shape).astype("float32")
+            actnorm.bias.data = xp.random.uniform(
+                -1.0, 1.0, size=actnorm.bias.data.shape).astype("float32")
 
-            params = conv_1x1.params
-            # shape = params.conv.W.data.shape
-            # noise = xp.random.uniform(-1.0, 1.0, size=shape).astype("float32")
-            # params.conv.W.data += noise
+            shape = conv_1x1.conv.W.data.shape
+            noise = xp.random.uniform(-1.0, 1.0, size=shape).astype("float32")
+            conv_1x1.conv.W.data += noise
+            conv_1x1.update_inverse_weight()
 
-            params = coupling_layer.nn.params
-            params.conv_1.W.data = xp.random.uniform(
-                -1.0, 1.0, size=params.conv_1.W.data.shape).astype("float32")
-            params.conv_2.W.data = xp.random.uniform(
-                -1.0, 1.0, size=params.conv_2.W.data.shape).astype("float32")
-            params.conv_3.W.data = xp.zeros(
-                params.conv_3.W.data.shape, dtype="float32")
-            params.scale.data = xp.zeros(
-                params.scale.data.shape, dtype="float32")
+            coupling_layer.nn.conv_1.W.data = xp.random.uniform(
+                0.5, 1.0,
+                size=coupling_layer.nn.conv_1.W.data.shape).astype("float32")
+            coupling_layer.nn.conv_2.W.data = xp.random.uniform(
+                0.5, 1.0,
+                size=coupling_layer.nn.conv_2.W.data.shape).astype("float32")
+            coupling_layer.nn.conv_3.W.data = xp.zeros(
+                coupling_layer.nn.conv_3.W.data.shape, dtype="float32")
+            coupling_layer.nn.scale.data = xp.zeros(
+                coupling_layer.nn.scale.data.shape, dtype="float32")
 
     with encoder.reverse() as decoder:
         factorized_z_distribution, logdet = encoder.forward_step(x)
         factorized_z = []
-        for (zi, mean, ln_var) in factorized_z_distribution:
+        for (zi, _, _) in factorized_z_distribution:
             factorized_z.append(zi)
         rev_x, rev_logdet = decoder.reverse_step(factorized_z)
         error = cf.mean(abs(x - rev_x))

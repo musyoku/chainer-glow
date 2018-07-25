@@ -136,21 +136,21 @@ def main():
     hyperparams.image_size = images.shape[2:]
     hyperparams.num_bits_x = args.num_bits_x
     hyperparams.lu_decomposition = args.lu_decomposition
-    hyperparams.learn_z_parameters = args.learn_z_parameters
-    hyperparams.serialize(args.snapshot_path)
+    hyperparams.save(args.snapshot_path)
     hyperparams.print()
 
     encoder = Glow(hyperparams, hdf5_path=args.snapshot_path)
     if using_gpu:
         encoder.to_gpu()
 
-    optimizer = Optimizer(encoder.params)
+    optimizer = Optimizer(encoder)
 
     # Data dependent initialization
     if encoder.need_initialize:
         for batch_index, data_indices in enumerate(iterator):
             x = to_gpu(dataset[data_indices])
-            encoder.initialize_actnorm_weights(x)
+            encoder.initialize_actnorm_weights(
+                x, reduce_memory=args.reduce_memory)
             break
 
     current_training_step = 0
@@ -174,12 +174,7 @@ def main():
 
             negative_log_likelihood = 0
             for (zi, mean, ln_var) in factorized_z_distribution:
-                if args.learn_z_parameters:
-                    negative_log_likelihood += cf.gaussian_nll(
-                        zi, mean, ln_var)
-                else:
-                    negative_log_likelihood += glow.nn.functions.standard_normal_nll(
-                        zi)
+                negative_log_likelihood += cf.gaussian_nll(zi, mean, ln_var)
 
             loss = (negative_log_likelihood / args.batch_size - logdet) / denom
 
@@ -189,13 +184,7 @@ def main():
 
             current_training_step += 1
 
-            loss_value = float(loss.data)
-            # check nan
-            if loss_value != loss_value:
-                print("Encountered NaN")
-                exit()
-
-            sum_loss += loss_value
+            sum_loss += float(loss.data)
             printr(
                 "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - log_det: {:.8f}".
                 format(
@@ -206,7 +195,7 @@ def main():
                     float(logdet.data) / denom))
 
             if batch_index % 100 == 0:
-                encoder.serialize(args.snapshot_path)
+                encoder.save(args.snapshot_path)
 
         # Check model reversibility
         rev_x_mean = None
@@ -234,7 +223,7 @@ def main():
             "\033[2KIteration {} - loss: {:.5f} - z: mean={:.5f} var={:.5f} - rev_x: mean={:.5f} var={:.5f} - elapsed_time: {:.3f} min".
             format(iteration + 1, sum_loss / len(iterator), z_mean, z_var,
                    rev_x_mean, rev_x_var, elapsed_time / 60))
-        encoder.serialize(args.snapshot_path)
+        encoder.save(args.snapshot_path)
 
 
 if __name__ == "__main__":
@@ -252,7 +241,5 @@ if __name__ == "__main__":
     parser.add_argument("--nn-hidden-channels", "-nn", type=int, default=512)
     parser.add_argument("--num-bits-x", "-bits", type=int, default=8)
     parser.add_argument("--lu-decomposition", "-lu", action="store_true")
-    parser.add_argument(
-        "--learn-z-parameters", "-learn-z", action="store_true")
     args = parser.parse_args()
     main()

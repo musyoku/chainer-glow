@@ -12,7 +12,6 @@ class Hyperparameters():
         self.nn_hidden_channels = 512
         self.image_size = (256, 256)
         self.lu_decomposition = False
-        self.learn_z_parameters = False
 
         if path is not None:
             json_path = os.path.join(path, self.params_filename)
@@ -28,7 +27,7 @@ class Hyperparameters():
     def params_filename(self):
         return "model.json"
 
-    def serialize(self, path):
+    def save(self, path):
         with open(os.path.join(path, self.params_filename), "w") as f:
             json.dump(
                 {
@@ -38,7 +37,6 @@ class Hyperparameters():
                     "nn_hidden_channels": self.nn_hidden_channels,
                     "num_bits_x": self.num_bits_x,
                     "image_size": self.image_size,
-                    "learn_z_parameters": self.learn_z_parameters,
                     "lu_decomposition": self.lu_decomposition,
                 },
                 f,
@@ -54,6 +52,5 @@ class Hyperparameters():
                 ["nn_hidden_channels", self.nn_hidden_channels],
                 ["image_size", self.image_size],
                 ["lu_decomposition", self.lu_decomposition],
-                ["learn_z_parameters", self.learn_z_parameters],
                 ["num_bits_x", self.num_bits_x],
             ]))

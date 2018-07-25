@@ -21,7 +21,7 @@ sys.path.append("..")
 import glow
 
 from hyperparams import Hyperparameters
-from model import InferenceModel, GenerativeModel
+from model import Glow
 from optimizer import Optimizer
 
 
@@ -129,19 +129,18 @@ def main():
     hyperparams.image_size = (args.image_size, args.image_size)
     hyperparams.num_bits_x = args.num_bits_x
     hyperparams.lu_decomposition = args.lu_decomposition
-    hyperparams.learn_z_parameters = args.learn_z_parameters
-    hyperparams.serialize(args.snapshot_path)
+    hyperparams.save(args.snapshot_path)
 
     if comm.rank == 0:
-        hyperparams.serialize(args.snapshot_path)
+        hyperparams.save(args.snapshot_path)
         hyperparams.print()
 
-    encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
+    encoder = Glow(hyperparams, hdf5_path=args.snapshot_path)
     encoder.to_gpu()
 
     optimizer = chainermn.create_multi_node_optimizer(
         chainer.optimizers.Adam(alpha=1e-4), comm)
-    optimizer.setup(encoder.params)
+    optimizer.setup(encoder)
 
     current_training_step = 0
     num_pixels = 3 * hyperparams.image_size[0] * hyperparams.image_size[1]
@@ -175,12 +174,7 @@ def main():
 
             negative_log_likelihood = 0
             for (zi, mean, ln_var) in factorized_z_distribution:
-                if args.learn_z_parameters:
-                    negative_log_likelihood += cf.gaussian_nll(
-                        zi, mean, ln_var)
-                else:
-                    negative_log_likelihood += glow.nn.functions.standard_normal_nll(
-                        zi)
+                negative_log_likelihood += cf.gaussian_nll(zi, mean, ln_var)
 
             loss = (negative_log_likelihood / batch_size - logdet) / denom
 
@@ -203,7 +197,7 @@ def main():
                         float(logdet.data) / denom))
 
             if batch_index % 100 == 0:
-                encoder.serialize(args.snapshot_path)
+                encoder.save(args.snapshot_path)
 
         # Check model reversibility
         rev_x_mean = None
@@ -212,18 +206,18 @@ def main():
         z_var = None
         if True:
             with chainer.no_backprop_mode():
-                decoder = encoder.reverse()
-                factorized_z_distribution, logdet = encoder(x)
-                factorized_z = []
-                for (zi, mean, ln_var) in factorized_z_distribution:
-                    factorized_z.append(zi)
-                rev_x, _ = decoder(factorized_z)
-                rev_x_mean = float(xp.mean(rev_x.data))
-                rev_x_var = float(xp.var(rev_x.data))
+                with encoder.reverse() as decoder:
+                    factorized_z_distribution, logdet = encoder(x)
+                    factorized_z = []
+                    for (zi, mean, ln_var) in factorized_z_distribution:
+                        factorized_z.append(zi)
+                    rev_x, _ = decoder(factorized_z)
+                    rev_x_mean = float(xp.mean(rev_x.data))
+                    rev_x_var = float(xp.var(rev_x.data))
 
-                z = merge_factorized_z(factorized_z)
-                z_mean = float(xp.mean(z))
-                z_var = float(xp.var(z))
+                    z = merge_factorized_z(factorized_z)
+                    z_mean = float(xp.mean(z))
+                    z_var = float(xp.var(z))
 
         if comm.rank == 0:
             elapsed_time = time.time() - start_time
@@ -231,7 +225,7 @@ def main():
                 "\033[2KIteration {} - loss: {:.5f} - z: mean={:.5f} var={:.5f} - rev_x: mean={:.5f} var={:.5f} - elapsed_time: {:.3f} min".
                 format(iteration + 1, sum_loss / total_batch, z_mean, z_var,
                        rev_x_mean, rev_x_var, elapsed_time / 60))
-            encoder.serialize(args.snapshot_path)
+            encoder.save(args.snapshot_path)
 
 
 if __name__ == "__main__":
@@ -249,7 +243,5 @@ if __name__ == "__main__":
     parser.add_argument("--num-bits-x", "-bits", type=int, default=8)
     parser.add_argument("--lu-decomposition", "-lu", action="store_true")
     parser.add_argument("--image-size", type=int, required=True)
-    parser.add_argument(
-        "--learn-z-parameters", "-learn-z", action="store_true")
     args = parser.parse_args()
     main()
