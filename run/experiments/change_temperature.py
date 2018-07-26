@@ -58,19 +58,16 @@ def main():
 
     with chainer.no_backprop_mode() and encoder.reverse() as decoder:
         while True:
-            z_batch = []
-            for temperature in temperatures:
+            for temperature, subplot in zip(temperatures, subplots):
                 z = np.random.normal(
-                    0, temperature,
-                    size=(3, ) + hyperparams.image_size).astype("float32")
-                z_batch.append(z)
-            z_batch = np.asanyarray(z_batch)
-            if using_gpu:
-                z_batch = cuda.to_gpu(z_batch)
-            x, _ = decoder.reverse_step(z_batch)
-            for n, (temperature, subplot) in enumerate(
-                    zip(temperatures, subplots)):
-                x_img = make_uint8(x.data[n], num_bins_x)
+                    0, temperature, size=(
+                        1,
+                        3,
+                    ) + hyperparams.image_size).astype("float32")
+                if using_gpu:
+                    z = cuda.to_gpu(z)
+                x, _ = decoder.reverse_step(z)
+                x_img = make_uint8(x.data[0], num_bins_x)
                 subplot.imshow(x_img, interpolation="none")
                 subplot.set_title("temperature={}".format(temperature))
             plt.pause(.01)
