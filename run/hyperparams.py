@@ -14,7 +14,7 @@ class Hyperparameters():
         self.lu_decomposition = False
 
         if path is not None:
-            json_path = os.path.join(path, self.params_filename)
+            json_path = os.path.join(path, self.filename)
             if os.path.exists(json_path) and os.path.isfile(json_path):
                 with open(json_path, "r") as f:
                     obj = json.load(f)
@@ -22,35 +22,19 @@ class Hyperparameters():
                         if isinstance(value, list):
                             value = tuple(value)
                         setattr(self, key, value)
+            else:
+                raise Exception("{} does not exist".format(json_path))
 
     @property
-    def params_filename(self):
-        return "model.json"
+    def filename(self):
+        return "hyperparams.json"
 
     def save(self, path):
-        with open(os.path.join(path, self.params_filename), "w") as f:
-            json.dump(
-                {
-                    "depth_per_level": self.depth_per_level,
-                    "levels": self.levels,
-                    "squeeze_factor": self.squeeze_factor,
-                    "nn_hidden_channels": self.nn_hidden_channels,
-                    "num_bits_x": self.num_bits_x,
-                    "image_size": self.image_size,
-                    "lu_decomposition": self.lu_decomposition,
-                },
-                f,
-                indent=4,
-                sort_keys=True)
+        with open(os.path.join(path, self.filename), "w") as f:
+            json.dump(self.__dict__, f, indent=4, sort_keys=True)
 
     def print(self):
-        print(
-            tabulate([
-                ["levels", self.levels],
-                ["squeeze_factor", self.squeeze_factor],
-                ["depth_per_level", self.depth_per_level],
-                ["nn_hidden_channels", self.nn_hidden_channels],
-                ["image_size", self.image_size],
-                ["lu_decomposition", self.lu_decomposition],
-                ["num_bits_x", self.num_bits_x],
-            ]))
+        rows = []
+        for key, value in self.__dict__.items():
+            rows.append([key, value])
+        print(tabulate(rows))

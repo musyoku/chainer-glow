@@ -56,28 +56,22 @@ class Flow(chainer.Chain):
             self.conv_1x1 = conv_1x1
             self.coupling_layer = coupling_layer
 
-    def forward_step(self, x, reduce_memory=False):
+    def forward_step(self, x):
         sum_logdet = 0
         out = x
 
-        if reduce_memory:
-            out, logdet = cf.forget(forward_closure(self.actnorm), out)
-        else:
-            out, logdet = self.actnorm.forward_step(out)
+        out, logdet = self.actnorm.forward_step(out)
         sum_logdet += logdet
 
         out, logdet = self.conv_1x1.forward_step(out)
         sum_logdet += logdet
 
-        if reduce_memory:
-            out, logdet = cf.forget(forward_closure(self.coupling_layer), out)
-        else:
-            out, logdet = self.coupling_layer.forward_step(out)
+        out, logdet = self.coupling_layer.forward_step(out)
         sum_logdet += logdet
 
         return out, sum_logdet
 
-    def reverse_step(self, x, reduce_memory=False):
+    def reverse_step(self, x):
         sum_logdet = 0
         out = x
 
@@ -122,14 +116,14 @@ class Block(chainer.ChainList):
     def __getitem__(self, index):
         return self.flows[index]
 
-    def forward_step(self, x, squeeze_factor, reduce_memory=False):
+    def forward_step(self, x, squeeze_factor):
         sum_logdet = 0
         out = x
 
         out = squeeze(out, factor=squeeze_factor)
 
         for flow in self.flows:
-            out, logdet = flow.forward_step(out, reduce_memory=reduce_memory)
+            out, logdet = flow.forward_step(out)
             sum_logdet += logdet
 
         if self.split_output:
@@ -232,7 +226,7 @@ class Glow(chainer.ChainList):
 
         if hdf5_path:
             try:
-                filepath = os.path.join(hdf5_path, self.params_filename)
+                filepath = os.path.join(hdf5_path, self.filename)
                 if os.path.exists(filepath) and os.path.isfile(filepath):
                     print("loading {}".format(filepath))
                     load_hdf5(filepath, self)
@@ -240,16 +234,14 @@ class Glow(chainer.ChainList):
             except Exception as error:
                 print(error)
 
-    def forward_step(self, x, reduce_memory=False):
+    def forward_step(self, x):
         z = []
         sum_logdet = 0
         out = x
 
         for block in self.blocks:
             out, zi_mean_lnvar, logdet = block.forward_step(
-                out,
-                squeeze_factor=self.hyperparams.squeeze_factor,
-                reduce_memory=reduce_memory)
+                out, squeeze_factor=self.hyperparams.squeeze_factor)
             sum_logdet += logdet
             z.append(zi_mean_lnvar)
 
@@ -289,11 +281,11 @@ class Glow(chainer.ChainList):
         return out, sum_logdet
 
     @property
-    def params_filename(self):
+    def filename(self):
         return "model.hdf5"
 
     def save(self, path):
-        self.save_parameter(path, self.params_filename, self)
+        self.save_parameter(path, self.filename, self)
 
     def save_parameter(self, path, filename, params):
         tmp_filename = str(uuid.uuid4())
@@ -305,7 +297,9 @@ class Glow(chainer.ChainList):
         return self.blocks[level]
 
     # data dependent initialization
-    def initialize_actnorm_weights(self, x, reduce_memory=False):
+    def initialize_actnorm_weights(self, x):
+        assert self.need_initialize
+        
         xp = cuda.get_array_module(x)
         levels = len(self.blocks)
         out = x
@@ -320,10 +314,12 @@ class Glow(chainer.ChainList):
                 flow.actnorm.scale.data = 1.0 / std
                 flow.actnorm.bias.data = -mean
 
-                out, _ = flow.forward_step(out, reduce_memory=reduce_memory)
+                out, _ = flow.forward_step(out)
 
             if level < levels - 1:
                 _, out = split_channel(out)
+
+        self.need_initialize = False
 
     @contextlib.contextmanager
     def reverse(self):

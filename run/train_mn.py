@@ -121,8 +121,7 @@ def main():
 
     dataset = chainermn.scatter_dataset(images, comm, shuffle=True)
 
-    hyperparams = Hyperparameters(args.snapshot_path
-                                  if comm.rank == 0 else None)
+    hyperparams = Hyperparameters()
     hyperparams.levels = args.levels
     hyperparams.depth_per_level = args.depth_per_level
     hyperparams.nn_hidden_channels = args.nn_hidden_channels
@@ -168,8 +167,7 @@ def main():
             batch_size = x.shape[0]
             denom = math.log(2.0) * num_pixels
 
-            factorized_z_distribution, logdet = encoder.forward_step(
-                x, reduce_memory=args.reduce_memory)
+            factorized_z_distribution, logdet = encoder.forward_step(x)
 
             logdet -= math.log(num_bins_x) * num_pixels
 
@@ -219,7 +217,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--snapshot-path", "-snapshot", type=str, default="snapshot")
     parser.add_argument("--batch-size", "-b", type=int, default=32)
-    parser.add_argument("--reduce-memory", action="store_true")
     parser.add_argument("--total-iteration", "-iter", type=int, default=1000)
     parser.add_argument("--depth-per-level", "-depth", type=int, default=32)
     parser.add_argument("--levels", "-levels", type=int, default=5)

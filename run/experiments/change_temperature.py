@@ -15,7 +15,7 @@ sys.path.append(os.path.join("..", ".."))
 import glow
 
 sys.path.append("..")
-from model import InferenceModel, GenerativeModel, to_cpu
+from model import Glow, to_cpu
 from hyperparams import Hyperparameters
 
 
@@ -44,12 +44,9 @@ def main():
 
     num_bins_x = 2.0**hyperparams.num_bits_x
 
-    encoder = InferenceModel(hyperparams, hdf5_path=args.snapshot_path)
-    decoder = encoder.reverse()
-
+    encoder = Glow(hyperparams, hdf5_path=args.snapshot_path)
     if using_gpu:
         encoder.to_gpu()
-        decoder.to_gpu()
 
     temperatures = [0.0, 0.25, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     total = len(temperatures)
@@ -59,20 +56,20 @@ def main():
         subplot = fig.add_subplot(1, total, n + 1)
         subplots.append(subplot)
 
-    with chainer.no_backprop_mode():
+    with chainer.no_backprop_mode() and encoder.reverse() as decoder:
         while True:
             z_batch = []
             for temperature in temperatures:
                 z = np.random.normal(
-                    0, temperature, size=(
-                        3,
-                    ) + hyperparams.image_size).astype("float32")
+                    0, temperature,
+                    size=(3, ) + hyperparams.image_size).astype("float32")
                 z_batch.append(z)
             z_batch = np.asanyarray(z_batch)
             if using_gpu:
                 z_batch = cuda.to_gpu(z_batch)
-            x, _ = decoder(z_batch)
-            for n, (temperature, subplot) in enumerate(zip(temperatures, subplots)):
+            x, _ = decoder.reverse_step(z_batch)
+            for n, (temperature, subplot) in enumerate(
+                    zip(temperatures, subplots)):
                 x_img = make_uint8(x.data[n], num_bins_x)
                 subplot.imshow(x_img, interpolation="none")
                 subplot.set_title("temperature={}".format(temperature))
