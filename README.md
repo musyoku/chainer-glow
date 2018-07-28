@@ -40,7 +40,7 @@ python3 run/train.py -dataset /home/user/dataset/celeba-64x64-images-npy/ -b 4 -
 
 ## Effect of change of #channels
 
-![https://thumbs.gfycat.com/WellmadeBlankJaguar-size_restricted.gif](https://thumbs.gfycat.com/WellmadeBlankJaguar-size_restricted.gif)
+![https://thumbs.gfycat.com/ValuableRemorsefulChameleon-size_restricted.gif](https://thumbs.gfycat.com/ValuableRemorsefulChameleon-size_restricted.gif)
 
 ## Effect of change of temperature
 
@@ -52,4 +52,4 @@ python3 run/train.py -dataset /home/user/dataset/celeba-64x64-images-npy/ -b 4 -
 
 ## CelebA HQ
 
-![https://thumbs.gfycat.com/TautLegalJellyfish-size_restricted.gif](https://thumbs.gfycat.com/TautLegalJellyfish-size_restricted.gif)
+![https://thumbs.gfycat.com/ThoseCandidElver-size_restricted.gif](https://thumbs.gfycat.com/ThoseCandidElver-size_restricted.gif)
