@@ -68,6 +68,8 @@ python3 interpolation.py -snapshot ../snapshot -dataset /home/user/dataset/celeb
 
 ![https://thumbs.gfycat.com/TautLegalJellyfish-size_restricted.gif](https://thumbs.gfycat.com/TautLegalJellyfish-size_restricted.gif)
 
+![https://thumbs.gfycat.com/PoshMatureEagle-size_restricted.gif](https://thumbs.gfycat.com/PoshMatureEagle-size_restricted.gif)
+
 ## CelebA HQ
 
 ```
