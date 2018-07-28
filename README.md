@@ -23,7 +23,7 @@ pip3 install tabulate
 # Dataset
 ## CelebA HQ
 
-![Large-scale CelebFaces Attributes (CelebA) Dataset](http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html)
+[Large-scale CelebFaces Attributes (CelebA) Dataset](http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html)
 
 - [celeba-32x32-images-npy.zip](https://drive.google.com/open?id=1HnaTektDZGwyjRwv08wBejVPsMTiSu1t)
 - [celeba-64x64-images-npy.zip](https://drive.google.com/open?id=14XkuMovCGdJp2Nz6RLs85irM0_a7PKnE)
