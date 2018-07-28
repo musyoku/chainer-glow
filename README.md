@@ -45,3 +45,11 @@ python3 run/train.py -dataset /home/user/dataset/celeba-64x64-images-npy/ -b 4 -
 ## Effect of change of temperature
 
 ![https://thumbs.gfycat.com/WeeWelltodoGrasshopper-size_restricted.gif](https://thumbs.gfycat.com/WeeWelltodoGrasshopper-size_restricted.gif)
+
+## Interpolation
+
+![https://thumbs.gfycat.com/TautLegalJellyfish-size_restricted.gif](https://thumbs.gfycat.com/TautLegalJellyfish-size_restricted.gif)
+
+## CelebA HQ
+
+![https://thumbs.gfycat.com/TautLegalJellyfish-size_restricted.gif](https://thumbs.gfycat.com/TautLegalJellyfish-size_restricted.gif)
