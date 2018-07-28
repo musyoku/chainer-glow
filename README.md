@@ -1,8 +1,8 @@
-# :construction: Work in Progress :construction:
-
 # Glow: Generative Flow with Invertible 1×1 Convolutions
 
 [https://arxiv.org/abs/1807.03039](https://arxiv.org/abs/1807.03039)
+
+後で実装解説を書きます。
 
 # Requirements
 
@@ -30,11 +30,13 @@ pip3 install tabulate
 - [celeba-128x128-images-npy.zip](https://drive.google.com/open?id=197IFPFaj-HS0KEOZS56ycQP-Sz3b3_m1)
 
 
-# Results
+# Run
 
 ```
 python3 run/train.py -dataset /home/user/dataset/celeba-64x64-images-npy/ -b 4 -depth 32 -levels 4 -nn 512 -bits 5 -ext npy -learn-z
 ```
+
+# Results
 
 ## Effect of change of #channels
 
