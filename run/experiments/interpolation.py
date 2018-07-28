@@ -116,24 +116,18 @@ def main():
                 z_start = z[0]
                 z_end = z[1]
 
-                z_batch = []
+                z_batch = [args.temperature * z_start]
                 for n in range(args.num_steps):
                     ratio = n / (args.num_steps - 1)
                     z_interp = ratio * z_end + (1.0 - ratio) * z_start
                     z_batch.append(args.temperature * z_interp)
+                z_batch.append(args.temperature * z_end)
 
-                for n in range(args.num_steps):
-                    z = z_batch[n]
+                for z, subplot in zip(z_batch, subplots):
                     z = z[None, ...]
                     rev_x, _ = decoder.reverse_step(z)
                     rev_x_img = make_uint8(rev_x.data[0], num_bins_x)
-                    subplots[n + 1].imshow(rev_x_img, interpolation="none")
-
-                x_start_img = make_uint8(x[0], num_bins_x)
-                subplots[0].imshow(x_start_img, interpolation="none")
-
-                x_end_img = make_uint8(x[-1], num_bins_x)
-                subplots[-1].imshow(x_end_img, interpolation="none")
+                    subplot.imshow(rev_x_img, interpolation="none")
 
                 plt.pause(.01)
 
@@ -146,6 +140,6 @@ if __name__ == "__main__":
     parser.add_argument("--dataset-path", "-dataset", type=str, required=True)
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
     parser.add_argument("--dataset-format", "-ext", type=str, required=True)
-    parser.add_argument("--temperature", "-temp", type=float, default=0.7)
+    parser.add_argument("--temperature", "-temp", type=float, default=1.0)
     args = parser.parse_args()
     main()
