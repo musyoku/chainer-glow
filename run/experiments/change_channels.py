@@ -15,7 +15,7 @@ sys.path.append(os.path.join("..", ".."))
 import glow
 
 sys.path.append("..")
-from model import InferenceModel, GenerativeModel, to_cpu
+from model import Glow, to_cpu
 from hyperparams import Hyperparameters
 
 
@@ -39,14 +39,11 @@ def get_model(path, using_gpu):
 
     num_bins_x = 2.0**hyperparams.num_bits_x
 
-    encoder = InferenceModel(hyperparams, hdf5_path=path)
-    decoder = encoder.reverse()
-
+    encoder = Glow(hyperparams, hdf5_path=path)
     if using_gpu:
         encoder.to_gpu()
-        decoder.to_gpu()
 
-    return encoder, decoder, num_bins_x, hyperparams
+    return encoder, num_bins_x, hyperparams
 
 
 def main():
@@ -60,7 +57,7 @@ def main():
     model2 = get_model(args.snapshot_path_2, using_gpu)
     model3 = get_model(args.snapshot_path_3, using_gpu)
 
-    num_bins_x, hyperparams = model1[2:]
+    num_bins_x, hyperparams = model1[1:]
 
     fig = plt.figure(figsize=(12, 4))
     left = fig.add_subplot(1, 3, 1)
@@ -75,26 +72,32 @@ def main():
             ) + hyperparams.image_size).astype("float32")
 
         with chainer.no_backprop_mode():
-            decoder = model1[1]
-            hyperparams = model1[3]
-            x, _ = decoder(z)
-            x_img = make_uint8(x.data[0], num_bins_x)
-            left.imshow(x_img, interpolation="none")
-            left.set_title("#channels = {}".format(hyperparams.nn_hidden_channels))
+            encoder = model1[0]
+            with encoder.reverse() as decoder:
+                hyperparams = model1[2]
+                x, _ = decoder.reverse_step(z)
+                x_img = make_uint8(x.data[0], num_bins_x)
+                left.imshow(x_img, interpolation="none")
+                left.set_title("#channels = {}".format(
+                    hyperparams.nn_hidden_channels))
 
-            decoder = model2[1]
-            hyperparams = model2[3]
-            x, _ = decoder(z)
-            x_img = make_uint8(x.data[0], num_bins_x)
-            center.imshow(x_img, interpolation="none")
-            center.set_title("#channels = {}".format(hyperparams.nn_hidden_channels))
+            encoder = model2[0]
+            with encoder.reverse() as decoder:
+                hyperparams = model2[2]
+                x, _ = decoder.reverse_step(z)
+                x_img = make_uint8(x.data[0], num_bins_x)
+                center.imshow(x_img, interpolation="none")
+                center.set_title("#channels = {}".format(
+                    hyperparams.nn_hidden_channels))
 
-            decoder = model3[1]
-            hyperparams = model3[3]
-            x, _ = decoder(z)
-            x_img = make_uint8(x.data[0], num_bins_x)
-            right.imshow(x_img, interpolation="none")
-            right.set_title("#channels = {}".format(hyperparams.nn_hidden_channels))
+            encoder = model3[0]
+            with encoder.reverse() as decoder:
+                hyperparams = model3[2]
+                x, _ = decoder.reverse_step(z)
+                x_img = make_uint8(x.data[0], num_bins_x)
+                right.imshow(x_img, interpolation="none")
+                right.set_title("#channels = {}".format(
+                    hyperparams.nn_hidden_channels))
 
             plt.pause(.01)
 

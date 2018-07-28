@@ -258,6 +258,15 @@ class Glow(chainer.ChainList):
                 factorized_z.append(zi)
         return factorized_z
 
+    # return z of same shape as x
+    def merge_factorized_z(self, factorized_z, factor=2):
+        z = None
+        for zi in reversed(factorized_z):
+            xp = cuda.get_array_module(zi.data)
+            z = zi.data if z is None else xp.concatenate((zi.data, z), axis=1)
+            z = glow.nn.functions.unsqueeze(z, factor, xp)
+        return z
+
     def reverse_step(self, z):
         assert self.is_reverse_mode is True
 
@@ -299,7 +308,7 @@ class Glow(chainer.ChainList):
     # data dependent initialization
     def initialize_actnorm_weights(self, x):
         assert self.need_initialize
-        
+
         xp = cuda.get_array_module(x)
         levels = len(self.blocks)
         out = x

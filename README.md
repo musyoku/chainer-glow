@@ -4,15 +4,6 @@
 
 [https://arxiv.org/abs/1807.03039](https://arxiv.org/abs/1807.03039)
 
-**Todo**
-
-- [x] Implement inference model
-- [x] Implement generative model
-- [x] Implement training loop
-- [ ] Quantitative experiments
-- [x] LU decomposition
-- [x] Debug
-
 # Requirements
 
 - Python 3
@@ -20,6 +11,7 @@
 - Chainer 4
 - Extremely huge amount of GPU memory
 - python-tabulate
+- scipy
 
 # Installation
 
@@ -31,12 +23,14 @@ pip3 install tabulate
 # Dataset
 ## CelebA HQ
 
-[http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html](http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html)
+- [celeba-32x32-images-npy.zip](https://drive.google.com/open?id=1HnaTektDZGwyjRwv08wBejVPsMTiSu1t)
+- [celeba-64x64-images-npy.zip](https://drive.google.com/open?id=14XkuMovCGdJp2Nz6RLs85irM0_a7PKnE)
+- [celeba-128x128-images-npy.zip](https://drive.google.com/open?id=197IFPFaj-HS0KEOZS56ycQP-Sz3b3_m1)
 
-[https://github.com/nperraud/download-celebA-HQ](https://github.com/nperraud/download-celebA-HQ)
 
+## Danbooru2017
 
-## Danbooru 2017
+Coming soon
 
 # Results
 
@@ -44,10 +38,10 @@ pip3 install tabulate
 python3 run/train.py -dataset /home/user/dataset/celeba-64x64-images-npy/ -b 4 -depth 32 -levels 4 -nn 512 -bits 5 -ext npy -learn-z
 ```
 
+## Effect of change of #channels
+
 ![https://thumbs.gfycat.com/WellmadeBlankJaguar-size_restricted.gif](https://thumbs.gfycat.com/WellmadeBlankJaguar-size_restricted.gif)
 
-```
-python3 run/train.py -dataset /home/user/dataset/celeba-128x128-images-npy/ -b 4 -depth 32 -levels 4 -nn 512 -bits 5 -ext npy -learn-z
-```
+## Effect of change of temperature
 
-![https://thumbs.gfycat.com/TerribleThankfulAardwolf-size_restricted.gif](https://thumbs.gfycat.com/TerribleThankfulAardwolf-size_restricted.gif)
+![https://thumbs.gfycat.com/WeeWelltodoGrasshopper-size_restricted.gif](https://thumbs.gfycat.com/WeeWelltodoGrasshopper-size_restricted.gif)

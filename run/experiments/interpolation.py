@@ -86,7 +86,7 @@ def main():
         raise NotImplementedError
 
     dataset = glow.dataset.Dataset(images)
-    iterator = glow.dataset.Iterator(dataset, batch_size=1)
+    iterator = glow.dataset.Iterator(dataset, batch_size=2)
 
     print(tabulate([["#image", len(dataset)]]))
 
@@ -94,9 +94,12 @@ def main():
     if using_gpu:
         encoder.to_gpu()
 
-    fig = plt.figure(figsize=(8, 4))
-    left = fig.add_subplot(1, 2, 1)
-    right = fig.add_subplot(1, 2, 2)
+    total = args.num_steps + 2
+    fig = plt.figure(figsize=(4 * total, 4))
+    subplots = []
+    for n in range(total):
+        subplot = fig.add_subplot(1, total, n + 1)
+        subplots.append(subplot)
 
     with chainer.no_backprop_mode() and encoder.reverse() as decoder:
         while True:
@@ -109,13 +112,28 @@ def main():
                 for (zi, mean, ln_var) in factorized_z_distribution:
                     factorized_z.append(zi)
 
-                rev_x, _ = decoder.reverse_step(factorized_z)
+                z = encoder.merge_factorized_z(factorized_z)
+                z_start = z[0]
+                z_end = z[1]
 
-                x_img = make_uint8(x[0], num_bins_x)
-                rev_x_img = make_uint8(rev_x.data[0], num_bins_x)
+                z_batch = []
+                for n in range(args.num_steps):
+                    ratio = n / (args.num_steps - 1)
+                    z_interp = ratio * z_end + (1.0 - ratio) * z_start
+                    z_batch.append(args.temperature * z_interp)
 
-                left.imshow(x_img, interpolation="none")
-                right.imshow(rev_x_img, interpolation="none")
+                for n in range(args.num_steps):
+                    z = z_batch[n]
+                    z = z[None, ...]
+                    rev_x, _ = decoder.reverse_step(z)
+                    rev_x_img = make_uint8(rev_x.data[0], num_bins_x)
+                    subplots[n + 1].imshow(rev_x_img, interpolation="none")
+
+                x_start_img = make_uint8(x[0], num_bins_x)
+                subplots[0].imshow(x_start_img, interpolation="none")
+
+                x_end_img = make_uint8(x[-1], num_bins_x)
+                subplots[-1].imshow(x_end_img, interpolation="none")
 
                 plt.pause(.01)
 
@@ -124,9 +142,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--snapshot-path", "-snapshot", type=str, required=True)
+    parser.add_argument("--num-steps", "-steps", type=int, default=5)
     parser.add_argument("--dataset-path", "-dataset", type=str, required=True)
-    parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
     parser.add_argument("--dataset-format", "-ext", type=str, required=True)
+    parser.add_argument("--temperature", "-temp", type=float, default=0.7)
     args = parser.parse_args()
     main()
