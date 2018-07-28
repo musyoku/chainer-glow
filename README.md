@@ -33,7 +33,8 @@ pip3 install tabulate
 # Run
 
 ```
-python3 run/train.py -dataset /home/user/dataset/celeba-64x64-images-npy/ -b 4 -depth 32 -levels 4 -nn 512 -bits 5 -ext npy
+cd run
+python3 train.py -dataset /home/user/dataset/celeba-64x64-images-npy/ -b 4 -depth 32 -levels 4 -nn 512 -bits 5 -ext npy
 ```
 
 # Results
