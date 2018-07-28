@@ -57,6 +57,8 @@ python3 change_temperature.py -snapshot ../snapshot
 
 ![https://thumbs.gfycat.com/WeeWelltodoGrasshopper-size_restricted.gif](https://thumbs.gfycat.com/WeeWelltodoGrasshopper-size_restricted.gif)
 
+![https://thumbs.gfycat.com/LinedAptInexpectatumpleco-size_restricted.gif](https://thumbs.gfycat.com/LinedAptInexpectatumpleco-size_restricted.gif)
+
 ## Interpolation
 
 ```
