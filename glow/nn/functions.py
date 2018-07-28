@@ -22,8 +22,6 @@ def unsqueeze(x, factor=2, module=cf):
     channels = x.shape[1]
     height = x.shape[2]
     width = x.shape[3]
-    assert height % factor == 0
-    assert width % factor == 0
     out = module.reshape(
         x, (batchsize, channels // (factor**2), factor, factor, height, width))
     out = module.transpose(out, (0, 1, 4, 2, 5, 3))
