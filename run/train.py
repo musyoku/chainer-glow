@@ -219,6 +219,7 @@ if __name__ == "__main__":
     parser.add_argument("--levels", "-levels", type=int, default=5)
     parser.add_argument("--nn-hidden-channels", "-nn", type=int, default=512)
     parser.add_argument("--num-bits-x", "-bits", type=int, default=8)
+    parser.add_argument("--squeeze-factor", "-bits", type=int, default=8)
     parser.add_argument("--lu-decomposition", "-lu", action="store_true")
     args = parser.parse_args()
     main()

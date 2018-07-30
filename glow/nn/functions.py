@@ -1,5 +1,6 @@
 import math
 import chainer.functions as cf
+from chainer.backends import cuda
 
 
 def squeeze(x, factor=2, module=cf):
@@ -34,3 +35,21 @@ def unsqueeze(x, factor=2, module=cf):
 def standard_normal_nll(x):
     nll = 0.5 * (math.log(2 * math.pi) + x * x)
     return cf.sum(nll)
+
+
+def split_channel(x):
+    n = x.shape[1] // 2
+    return x[:, :n], x[:, n:]
+
+
+def factor_z(z, levels, squeeze_factor=2):
+    xp = cuda.get_array_module(z)
+    factorized_z = []
+    for level in range(levels):
+        z = squeeze(z, module=xp, factor=squeeze_factor)
+        if level == levels - 1:
+            factorized_z.append(z)
+        else:
+            zi, z = split_channel(z)
+            factorized_z.append(zi)
+    return factorized_z

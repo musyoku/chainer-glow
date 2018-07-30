@@ -13,7 +13,7 @@ from chainer.backends import cuda
 sys.path.append("..")
 import glow
 
-from glow.nn.functions import squeeze, unsqueeze
+from glow.nn.functions import squeeze, unsqueeze, split_channel, factor_z
 from hyperparams import Hyperparameters
 
 
@@ -34,11 +34,6 @@ def forward_closure(layer):
         return layer.forward_step(x)
 
     return func
-
-
-def split_channel(x):
-    n = x.shape[1] // 2
-    return x[:, :n], x[:, n:]
 
 
 def zeros_like(x):
@@ -139,19 +134,24 @@ class Block(chainer.ChainList):
 
         return out, (zi, mean, ln_var), sum_logdet
 
-    def reverse_step(self, out, gaussian_eps, squeeze_factor):
+    def reverse_step(self, out, gaussian_eps, squeeze_factor, sampling=True):
         sum_logdet = 0
-
         if self.split_output:
-            z_distritubion = self.prior(out)
-            mean, ln_var = split_channel(z_distritubion)
-            zi = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
+            if sampling:
+                z_distritubion = self.prior(out)
+                mean, ln_var = split_channel(z_distritubion)
+                zi = cf.gaussian(mean, ln_var, eps=gaussian_eps)
+            else:
+                zi = gaussian_eps
             out = cf.concat((zi, out), axis=1)
         else:
-            zeros = zeros_like(gaussian_eps)
-            z_distritubion = self.prior(zeros)
-            mean, ln_var = split_channel(z_distritubion)
-            out = cf.gaussian(mean, ln_var, eps=gaussian_eps.data)
+            if sampling:
+                zeros = zeros_like(gaussian_eps)
+                z_distritubion = self.prior(zeros)
+                mean, ln_var = split_channel(z_distritubion)
+                out = cf.gaussian(mean, ln_var, eps=gaussian_eps)
+            else:
+                out = gaussian_eps
 
         for flow in self.flows[::-1]:
             out, logdet = flow.reverse_step(out)
@@ -247,17 +247,6 @@ class Glow(chainer.ChainList):
 
         return z, sum_logdet
 
-    def factor_z(self, z):
-        factorized_z = []
-        for level in range(self.hyperparams.levels):
-            z = squeeze(z)
-            if level == self.hyperparams.levels - 1:
-                factorized_z.append(z)
-            else:
-                zi, z = split_channel(z)
-                factorized_z.append(zi)
-        return factorized_z
-
     # return z of same shape as x
     def merge_factorized_z(self, factorized_z, factor=2):
         z = None
@@ -267,13 +256,19 @@ class Glow(chainer.ChainList):
             z = glow.nn.functions.unsqueeze(z, factor, xp)
         return z
 
+    def factor_z(self, z):
+        return factor_z(
+            z,
+            levels=self.hyperparams.levels,
+            squeeze_factor=self.hyperparams.squeeze_factor)
+
     def reverse_step(self, z):
         assert self.is_reverse_mode is True
 
         if isinstance(z, list):
             factorized_z = z
         else:
-            factorized_z = self.factor_z(z)
+            factorized_z = factor_z(z, levels=self.hyperparams.levels)
 
         assert len(factorized_z) == len(self.blocks)
 
