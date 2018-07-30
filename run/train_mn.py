@@ -128,6 +128,7 @@ def main():
     hyperparams.image_size = (args.image_size, args.image_size)
     hyperparams.num_bits_x = args.num_bits_x
     hyperparams.lu_decomposition = args.lu_decomposition
+    hyperparams.squeeze_factor = args.squeeze_factor
     hyperparams.save(args.snapshot_path)
 
     if comm.rank == 0:
@@ -222,6 +223,7 @@ if __name__ == "__main__":
     parser.add_argument("--levels", "-levels", type=int, default=5)
     parser.add_argument("--nn-hidden-channels", "-nn", type=int, default=512)
     parser.add_argument("--num-bits-x", "-bits", type=int, default=8)
+    parser.add_argument("--squeeze-factor", "-sf", type=int, default=2)
     parser.add_argument("--lu-decomposition", "-lu", action="store_true")
     parser.add_argument("--image-size", type=int, required=True)
     args = parser.parse_args()
