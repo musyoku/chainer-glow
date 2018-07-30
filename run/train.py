@@ -78,6 +78,14 @@ def preprocess(image, num_bits_x):
     return image
 
 
+def _float(v):
+    if isinstance(v, float):
+        return v
+    if isinstance(v, chainer.Variable):
+        return float(v.data)
+    return float(v)
+
+
 def main():
     try:
         os.mkdir(args.snapshot_path)
@@ -160,6 +168,7 @@ def main():
     for iteration in range(args.total_iteration):
         sum_loss = 0
         sum_nll = 0
+        sum_kld = 0
         start_time = time.time()
 
         for batch_index, data_indices in enumerate(iterator):
@@ -172,11 +181,15 @@ def main():
 
             logdet -= math.log(num_bins_x) * num_pixels
 
+            kld = 0
             negative_log_likelihood = 0
             for (zi, mean, ln_var) in factorized_z_distribution:
                 negative_log_likelihood += cf.gaussian_nll(zi, mean, ln_var)
+                if args.regularize_z:
+                    kld += cf.gaussian_kl_divergence(mean, ln_var)
 
-            loss = (negative_log_likelihood / args.batch_size - logdet) / denom
+            loss = (negative_log_likelihood + kld) / args.batch_size - logdet
+            loss = loss / denom
 
             encoder.cleargrads()
             loss.backward()
@@ -184,26 +197,28 @@ def main():
 
             current_training_step += 1
 
-            sum_loss += float(loss.data)
-            sum_nll += float(negative_log_likelihood.data) / args.batch_size
+            sum_loss += _float(loss)
+            sum_nll += _float(negative_log_likelihood) / args.batch_size
+            sum_kld += _float(kld) / args.batch_size
             printr(
-                "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - log_det: {:.8f}".
+                "Iteration {}: Batch {} / {} - loss: {:.8f} - nll: {:.8f} - kld: {:.8f} - log_det: {:.8f}".
                 format(
                     iteration + 1, batch_index + 1, len(iterator),
-                    float(loss.data),
-                    float(negative_log_likelihood.data) / args.batch_size /
-                    denom,
-                    float(logdet.data) / denom))
+                    _float(loss),
+                    _float(negative_log_likelihood) / args.batch_size / denom,
+                    _float(kld) / args.batch_size,
+                    _float(logdet) / denom))
 
             if (batch_index + 1) % 100 == 0:
                 encoder.save(args.snapshot_path)
 
-        log_likelihood = -sum_nll / len(iterator)
+        mean_log_likelihood = -sum_nll / len(iterator)
+        mean_kld = sum_kld / len(iterator)
         elapsed_time = time.time() - start_time
         print(
-            "\033[2KIteration {} - loss: {:.5f} - log_likelihood: {:.5f} - elapsed_time: {:.3f} min".
-            format(iteration + 1, sum_loss / len(iterator), log_likelihood,
-                   elapsed_time / 60))
+            "\033[2KIteration {} - loss: {:.5f} - log_likelihood: {:.5f} - kld: {:.5f} - elapsed_time: {:.3f} min".
+            format(iteration + 1, sum_loss / len(iterator), mean_log_likelihood,
+                   mean_kld, elapsed_time / 60))
         encoder.save(args.snapshot_path)
 
 
@@ -222,5 +237,6 @@ if __name__ == "__main__":
     parser.add_argument("--num-bits-x", "-bits", type=int, default=8)
     parser.add_argument("--squeeze-factor", "-sf", type=int, default=2)
     parser.add_argument("--lu-decomposition", "-lu", action="store_true")
+    parser.add_argument("--regularize_z", action="store_true")
     args = parser.parse_args()
     main()

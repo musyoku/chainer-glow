@@ -70,7 +70,8 @@ def main():
                         3,
                     ) + hyperparams.image_size,
                     dtype="float32")
-                factorized_z = glow.nn.functions.factor_z(z, level + 1)
+                factorized_z = glow.nn.functions.factor_z(
+                    z, level + 1, squeeze_factor=hyperparams.squeeze_factor)
 
                 out = glow.nn.functions.unsqueeze(
                     factorized_z.pop(-1),

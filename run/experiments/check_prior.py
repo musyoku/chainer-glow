@@ -94,30 +94,15 @@ def main():
     if using_gpu:
         encoder.to_gpu()
 
-    fig = plt.figure(figsize=(8, 4))
-    left = fig.add_subplot(1, 2, 1)
-    right = fig.add_subplot(1, 2, 2)
-
     with chainer.no_backprop_mode() and encoder.reverse() as decoder:
-        while True:
-            for data_indices in iterator:
-                x = to_gpu(dataset[data_indices])
-                x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
-                factorized_z_distribution, _ = encoder.forward_step(x)
+        for data_indices in iterator:
+            print("data:", data_indices)
+            x = to_gpu(dataset[data_indices])
+            x += xp.random.uniform(0, 1.0 / num_bins_x, size=x.shape)
+            factorized_z_distribution, _ = encoder.forward_step(x)
 
-                factorized_z = []
-                for (zi, mean, ln_var) in factorized_z_distribution:
-                    factorized_z.append(zi.data)
-
-                rev_x, _ = decoder.reverse_step(factorized_z)
-
-                x_img = make_uint8(x[0], num_bins_x)
-                rev_x_img = make_uint8(rev_x.data[0], num_bins_x)
-
-                left.imshow(x_img, interpolation="none")
-                right.imshow(rev_x_img, interpolation="none")
-
-                plt.pause(.01)
+            for (_, mean, ln_var) in factorized_z_distribution:
+                print(xp.mean(mean.data), xp.mean(xp.exp(ln_var.data)))
 
 
 if __name__ == "__main__":
@@ -125,7 +110,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--snapshot-path", "-snapshot", type=str, required=True)
     parser.add_argument("--dataset-path", "-dataset", type=str, required=True)
-    parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
     parser.add_argument("--dataset-format", "-ext", type=str, required=True)
     args = parser.parse_args()
