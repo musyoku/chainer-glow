@@ -268,7 +268,7 @@ class Glow(chainer.ChainList):
         if isinstance(z, list):
             factorized_z = z
         else:
-            factorized_z = factor_z(z, levels=self.hyperparams.levels)
+            factorized_z = self.factor_z(z)
 
         assert len(factorized_z) == len(self.blocks)
 

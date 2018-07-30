@@ -45,7 +45,6 @@ def main():
     num_bins_x = 2.0**hyperparams.num_bits_x
 
     encoder = Glow(hyperparams, hdf5_path=args.snapshot_path)
-
     if using_gpu:
         encoder.to_gpu()
 
