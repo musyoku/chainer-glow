@@ -46,7 +46,7 @@ cd run/experiments
 python3 change_channels.py -snapshot-1 ../snapshot_512 -snapshot-2 ../snapshot_256 -snapshot-3 ../snapshot_128
 ```
 
-![https://thumbs.gfycat.com/ValuableRemorsefulChameleon-size_restricted.gif](https://thumbs.gfycat.com/ValuableRemorsefulChameleon-size_restricted.gif)
+![https://thumbs.gfycat.com/UnimportantYoungEider-size_restricted.gif](https://thumbs.gfycat.com/UnimportantYoungEider-size_restricted.gif)
 
 ## Effect of change of temperature
 
@@ -77,4 +77,4 @@ cd run/experiments
 python3 generate.py  -snapshot ../snapshot_hq --temperature 0.7
 ```
 
-![https://thumbs.gfycat.com/ThoseCandidElver-size_restricted.gif](https://thumbs.gfycat.com/ThoseCandidElver-size_restricted.gif)
+![https://thumbs.gfycat.com/ConsciousAlarmingAmericanredsquirrel-size_restricted.gif](https://thumbs.gfycat.com/ConsciousAlarmingAmericanredsquirrel-size_restricted.gif)
