@@ -48,27 +48,33 @@ def main():
     if using_gpu:
         encoder.to_gpu()
 
-    z = xp.random.normal(
+    src_z = xp.random.normal(
         0, args.temperature, size=(
             1,
             3,
         ) + hyperparams.image_size).astype("float32")
-    norm = xp.linalg.norm(z)
+
+    dest_z = xp.random.normal(
+        0, args.temperature, size=(
+            1,
+            3,
+        ) + hyperparams.image_size).astype("float32")
 
     with chainer.no_backprop_mode() and encoder.reverse() as decoder:
         while True:
-            move = xp.random.uniform(
-                -0.3, 0.3, size=(
+            for step in range(args.steps):
+                interp = step / args.steps
+                z = (1.0 - interp) * src_z + interp * dest_z
+                x, _ = decoder.reverse_step(z)
+                x_img = make_uint8(x.data[0], num_bins_x)
+                plt.imshow(x_img, interpolation="none")
+                plt.pause(.01)
+            src_z = dest_z
+            dest_z = xp.random.normal(
+                0, args.temperature, size=(
                     1,
                     3,
                 ) + hyperparams.image_size).astype("float32")
-            z += move
-            new_norm = xp.linalg.norm(z)
-            z *= norm / new_norm
-            x, _ = decoder.reverse_step(z)
-            x_img = make_uint8(x.data[0], num_bins_x)
-            plt.imshow(x_img, interpolation="none")
-            plt.pause(.01)
 
 
 if __name__ == "__main__":
@@ -76,6 +82,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--snapshot-path", "-snapshot", type=str, required=True)
     parser.add_argument("--temperature", type=float, default=0.7)
+    parser.add_argument("--steps", type=int, default=10)
     parser.add_argument("--gpu-device", "-gpu", type=int, default=0)
     args = parser.parse_args()
     main()

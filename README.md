@@ -78,3 +78,10 @@ python3 generate.py  -snapshot ../snapshot_hq --temperature 0.7
 ```
 
 ![https://thumbs.gfycat.com/ConsciousAlarmingAmericanredsquirrel-size_restricted.gif](https://thumbs.gfycat.com/ConsciousAlarmingAmericanredsquirrel-size_restricted.gif)
+
+```
+cd run/experiments
+python3 random_walk.py  -snapshot ../snapshot_hq --temperature 0.7
+```
+
+![https://thumbs.gfycat.com/FaintWideeyedAfricanporcupine-size_restricted.gif](https://thumbs.gfycat.com/FaintWideeyedAfricanporcupine-size_restricted.gif)
