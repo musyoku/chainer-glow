@@ -77,6 +77,8 @@ cd run/experiments
 python3 generate.py  -snapshot ../snapshot_hq --temperature 0.7
 ```
 
+8 GPUs with 16GB memory were used in this experiment and it took 4 days to get the result.
+
 ![https://thumbs.gfycat.com/ConsciousAlarmingAmericanredsquirrel-size_restricted.gif](https://thumbs.gfycat.com/ConsciousAlarmingAmericanredsquirrel-size_restricted.gif)
 
 ```
